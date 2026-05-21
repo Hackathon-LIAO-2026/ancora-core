@@ -16,11 +16,17 @@ export class ClimateSearchController {
   ) {}
 
   /**
-   * POST /climate/search
-   * Busca semântica com re-ranking no ChromaDB.
+   * POST /climate/risk
+   *
+   * Endpoint principal — recebe o payload do n8n/Gemini e retorna
+   * análise de risco climático com contexto histórico.
+   *
+   * O n8n chama esse endpoint após o Gemini extrair cidade/intenção
+   * da mensagem da usuária. O retorno é passado de volta pro Gemini
+   * pra gerar a resposta empática adaptada ao Panic Score.
    */
-  @Post('search')
-  async search(@Body() dto: SearchRequestDto): Promise<SearchResponseDto> {
+  @Post('risk')
+  async analyzeRisk(@Body() dto: SearchRequestDto): Promise<SearchResponseDto> {
     return this.searchUseCase.execute(dto);
   }
 

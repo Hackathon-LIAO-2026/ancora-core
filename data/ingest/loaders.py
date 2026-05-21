@@ -68,3 +68,14 @@ def load_xlsx(path: Path) -> pd.DataFrame:
     console.print(f"     Colunas: {df.columns.tolist()}")
     console.print(f"     Linhas: {len(df):,}")
     return df
+
+
+@register("csv_with_header")
+def load_csv_with_header(path: Path) -> pd.DataFrame:
+    """Lê um CSV com header (ex: órgãos de emergência)."""
+    console.print(f"  📂 Lendo CSV (com header): [bold]{path.name}[/]")
+
+    df = pd.read_csv(path)
+    console.print(f"     Colunas: {df.columns.tolist()}")
+    console.print(f"     Linhas: {len(df):,}")
+    return df

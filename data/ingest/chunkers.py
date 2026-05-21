@@ -73,3 +73,28 @@ def chunk_salvador(df: pd.DataFrame) -> list[dict]:
             "metadata": meta,
         })
     return docs
+
+
+@register("orgaos")
+def chunk_orgaos(df: pd.DataFrame) -> list[dict]:
+    """Cada órgão vira um documento textual com telefone e cobertura."""
+    docs = []
+    for i, row in df.iterrows():
+        texto = (
+            f"{row['orgao']} — Telefone: {row['telefone']}. "
+            f"Tipo: {row['tipo']}. Cobertura: {row['cobertura']}. "
+            f"{row['descricao']}. "
+            f"Acionar quando risco for {row['risco_minimo']} ou superior."
+        )
+        docs.append({
+            "id": f"orgao-{i}",
+            "document": texto,
+            "metadata": {
+                "orgao": str(row["orgao"]),
+                "telefone": str(row["telefone"]),
+                "tipo": str(row["tipo"]),
+                "cobertura": str(row["cobertura"]),
+                "risco_minimo": str(row["risco_minimo"]),
+            },
+        })
+    return docs

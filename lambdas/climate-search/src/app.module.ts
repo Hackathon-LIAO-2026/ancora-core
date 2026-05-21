@@ -6,6 +6,7 @@ import { SemanticSearchStrategy } from './infrastructure/search/strategies/seman
 import { MetadataFilterStrategy } from './infrastructure/search/strategies/metadata-filter.strategy';
 import { RerankingStrategy } from './infrastructure/search/strategies/reranking.strategy';
 import { SearchClimateUseCase } from './application/search-climate.use-case';
+import { FindEmergencyContactUseCase } from './application/find-emergency-contact.use-case';
 import { ClimateSearchController } from './presentation/climate-search.controller';
 
 @Module({
@@ -25,6 +26,7 @@ import { ClimateSearchController } from './presentation/climate-search.controlle
 
     // Use Cases
     SearchClimateUseCase,
+    FindEmergencyContactUseCase,
   ],
 })
 export class AppModule {}

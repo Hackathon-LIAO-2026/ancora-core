@@ -1,98 +1,319 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Lambda 1 — Climate Search (Outras Cidades)
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+> **Bounded Context:** Contexto Climático Regional  
+> **Domínio:** Busca semântica de dados históricos INMET para cidades da Bahia **fora de Salvador**.  
+> **Jornada:** Fluxo Reativo (usuária pede ajuda)
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## O que essa Lambda faz
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+1. Recebe o payload do n8n (extraído pelo Gemini da mensagem da usuária)
+2. **Valida** que a cidade não é Salvador (se for, retorna 400 — Salvador vai pra Lambda 2)
+3. **Busca semanticamente** no ChromaDB registros climáticos históricos similares à situação descrita
+4. **Re-rankeia** os resultados por relevância, severidade e recência
+5. **Calcula o nível de risco** baseado nos padrões históricos encontrados
+6. **Retorna JSON** pro n8n, que passa pro Gemini gerar a resposta empática
 
-## Project setup
+---
 
-```bash
-$ npm install
+## Sobre a Planilha (Dataset)
+
+### Origem
+
+`clima_bahia_hackathon.csv` — dados do **INMET** (Instituto Nacional de Meteorologia), cobrindo **21 anos** (2000–2021) de medições horárias de **49 estações automáticas** espalhadas pela Bahia.
+
+### Estrutura do CSV (sem header)
+
+| Coluna | Campo | Exemplo | Descrição |
+|---|---|---|---|
+| 1 | `estacao` | `A401` | Código da estação INMET |
+| 2 | `data` | `2021-01-01` | Data da medição |
+| 3 | `hora` | `0`, `100`, `200`... | Hora UTC (0 = meia-noite, 100 = 1h, etc.) |
+| 4 | `precipitacao` | `2.4` | Precipitação em mm |
+| 5 | `pressao_media` | `1008.0` | Pressão atmosférica média (hPa) |
+| 6 | `pressao_max` | `1008.2` | Pressão máxima |
+| 7 | `pressao_min` | `1007.9` | Pressão mínima |
+| 8 | `radiacao` | *(vazio)* | Radiação solar (muitos nulos) |
+| 9 | `temp_media` | `26.0` | Temperatura média (°C) |
+| 10 | `temp_orvalho` | `20.9` | Temperatura do ponto de orvalho |
+| 11 | `temp_max` | `26.3` | Temperatura máxima |
+| 12 | `temp_min` | `25.9` | Temperatura mínima |
+| 13 | `orvalho_max` | `21.3` | Orvalho máximo |
+| 14 | `orvalho_min` | `20.6` | Orvalho mínimo |
+| 15 | `umidade_max` | `74.0` | Umidade relativa máxima (%) |
+| 16 | `umidade_min` | `72.0` | Umidade mínima |
+| 17 | `umidade_media` | `73.0` | Umidade média |
+| 18 | `rajada_vento` | `93.0` | Rajada máxima de vento (km/h) |
+| 19 | `vento_velocidade` | `5.2` | Velocidade média do vento |
+| 20 | `vento_direcao` | `1.5` | Direção do vento (graus) |
+
+### Códigos das Estações
+
+Os códigos `A4XX` são estações automáticas do INMET na Bahia. Cada código representa uma localização geográfica fixa (ex: A401 = Salvador/Ondina, A402 = Feira de Santana, etc.). O dataset tem **49 estações** cobrindo todo o estado.
+
+### Volume
+
+- **5.206.752 linhas** (medições horárias)
+- Após agrupamento por estação + dia → **216.949 documentos** no ChromaDB
+
+---
+
+## Como a Ingestão Funciona
+
+```
+CSV (5.2M linhas horárias)
+       │
+  [Agrupamento por estação + dia]
+       │
+  216.949 documentos diários
+       │
+  [Cada documento vira texto descritivo]
+       │
+  "Estação A402, data 2023-06-15, precipitação total 112.0mm,
+   temperatura média 22.1°C (min 18.5°C, max 26.5°C),
+   umidade média 89%, rajada máxima 95.0km/h..."
+       │
+  [ChromaDB gera embedding vetorial do texto]
+       │
+  Vetor de 384 dimensões armazenado com metadata
 ```
 
-## Compile and run the project
+---
 
-```bash
-# development
-$ npm run start
+## Algoritmos Utilizados
 
-# watch mode
-$ npm run start:dev
+### 1. HNSW (Hierarchical Navigable Small World) — Busca Vetorial
 
-# production mode
-$ npm run start:prod
+**O que é:** Algoritmo de grafos multicamada para busca aproximada de vizinhos mais próximos (ANN). É o estado da arte em vector search.
+
+**Como funciona:**
+- Constrói um grafo navegável com múltiplas camadas (hierárquico)
+- Camadas superiores = poucos nós, conexões longas (navegação rápida)
+- Camadas inferiores = muitos nós, conexões curtas (precisão)
+- A busca começa no topo e desce, como um "zoom" progressivo
+
+**Complexidade:** O(log n) — muito mais eficiente que busca linear O(n)  
+**Precisão:** ~95% recall@10 comparado com busca exata (brute force)
+
+**Por que não BFS/DFS/Dijkstra?**
+- BFS/DFS são O(n) — inviáveis com 216k documentos
+- Dijkstra é pra grafos com pesos de aresta (caminhos mínimos), não similaridade vetorial
+- HNSW é especificamente projetado pra busca por similaridade em alta dimensão
+
+### 2. Expansão de Query (Query Expansion)
+
+**O que é:** Técnica de Information Retrieval que adiciona sinônimos/termos relacionados à query original pra melhorar o recall.
+
+**Como funciona no ÁncorA:**
+```
+"chuva forte" → "chuva forte precipitação temporal alagamento"
+"calor"       → "calor temperatura alta onda de calor"
+"vento"       → "vento rajada ventania vendaval"
 ```
 
-## Run tests
+Isso garante que a busca semântica encontre documentos relevantes mesmo que usem termos diferentes da mensagem original.
 
-```bash
-# unit tests
-$ npm run test
+### 3. Re-ranking com Score Ponderado (Learning-to-Rank simplificado)
 
-# e2e tests
-$ npm run test:e2e
+**O que é:** Após a busca vetorial retornar candidatos, recalcula a relevância usando múltiplos fatores.
 
-# test coverage
-$ npm run test:cov
+**Pesos:**
+
+| Fator | Peso | Lógica |
+|---|---|---|
+| Similaridade semântica | 40% | Distância vetorial (HNSW) convertida em similaridade |
+| Severidade climática | 30% | Eventos extremos (precip > 50mm, temp > 38°C, rajada > 60km/h) |
+| Recência temporal | 20% | Decay exponencial — dados recentes pesam mais (half-life: 365 dias) |
+| Cluster bonus | 10% | Múltiplos resultados da mesma estação = padrão consistente |
+
+### 4. Cálculo de Risco (Rule-based scoring)
+
+**Baseado nos registros históricos encontrados:**
+
+| Condição | Nível |
+|---|---|
+| ≥60% eventos extremos OU precipitação média > 80mm | CRÍTICO |
+| ≥40% eventos extremos OU precipitação média > 50mm | ALTO |
+| ≥20% eventos extremos OU precipitação média > 30mm | MÉDIO |
+| Caso contrário | BAIXO |
+
+---
+
+## O que a IA (Embedding) faz exatamente
+
+O ChromaDB usa o modelo **all-MiniLM-L6-v2** (384 dimensões) pra transformar texto em vetores numéricos.
+
+```
+Texto: "Estação A402, precipitação total 112mm, rajada 95km/h"
+       ↓
+Embedding: [0.023, -0.156, 0.089, ..., 0.041]  (384 números)
 ```
 
-## Deployment
+Quando a usuária manda "tá chovendo muito em Feira de Santana", o modelo transforma essa frase no mesmo espaço vetorial e busca os documentos mais próximos geometricamente — ou seja, os registros climáticos que descrevem situações mais parecidas.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+**Não é keyword matching** — é compreensão semântica. "Tá alagando" encontra registros com "precipitação 120mm" mesmo sem a palavra "alagando" no documento.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+---
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+## Validação de Domínio
+
+Se a cidade for Salvador (ou variantes: "ssa", "soteropolis"), a Lambda retorna **400 Bad Request**:
+
+```json
+{
+  "statusCode": 400,
+  "message": "Cidade \"Salvador\" deve ser roteada para a Lambda 2 (risk-analysis). Esta Lambda atende apenas cidades fora de Salvador.",
+  "error": "Bad Request"
+}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+---
 
-## Resources
+## Órgãos de Emergência
 
-Check out a few resources that may come in handy when working with NestJS:
+Quando o `riskLevel` é **ALTO** ou **CRÍTICO**, a Lambda busca automaticamente no ChromaDB (collection `orgaos_emergencia`) os órgãos de emergência relevantes pra cidade da usuária.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+**Dataset:** `data/csv/orgaos_emergencia_bahia.csv`
 
-## Support
+| Órgão | Telefone | Cobertura | Risco mínimo |
+|---|---|---|---|
+| Defesa Civil Estadual | (71) 3116-5399 | Bahia | ALTO |
+| SAMU | 192 | Nacional | CRÍTICO |
+| Bombeiros | 193 | Nacional | ALTO |
+| Defesa Civil Feira de Santana | (75) 3602-8200 | Feira de Santana | ALTO |
+| Defesa Civil Ilhéus | (73) 3234-5600 | Ilhéus | ALTO |
+| CEMADEN | 199 | Nacional | MÉDIO |
+| Cruz Vermelha Bahia | (71) 3336-2200 | Bahia | ALTO |
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+**Lógica:**
+- `riskLevel == BAIXO ou MÉDIO` → `emergencyContacts: []` (vazio)
+- `riskLevel == ALTO ou CRÍTICO` → busca semântica na collection `orgaos_emergencia`, filtra por cobertura (cidade, estado ou nacional)
 
-## Stay in touch
+**Exemplo no response:**
+```json
+{
+  "riskLevel": "ALTO",
+  "emergencyContacts": [
+    {
+      "orgao": "Defesa Civil Feira de Santana",
+      "telefone": "(75) 3602-8200",
+      "tipo": "defesa_civil",
+      "cobertura": "Feira de Santana"
+    },
+    {
+      "orgao": "Defesa Civil Estadual",
+      "telefone": "(71) 3116-5399",
+      "tipo": "defesa_civil",
+      "cobertura": "Bahia"
+    },
+    {
+      "orgao": "Bombeiros 193",
+      "telefone": "193",
+      "tipo": "bombeiros",
+      "cobertura": "Nacional"
+    }
+  ]
+}
+```
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+---
 
-## License
+## Separação por Domínio (DDD)
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Lambda | Bounded Context | Collection | Responsabilidade |
+|---|---|---|---|
+| **Lambda 1** (climate-search) | Contexto Climático Regional | `clima_bahia` | Busca semântica + risco genérico |
+| **Lambda 2** (risk-analysis) | Análise de Risco Salvador | `clima_salvador` + Postgres | Risco local + abrigos + rota |
+
+---
+
+## Endpoints
+
+### POST /climate/risk
+
+**Request:**
+```bash
+curl -X POST http://localhost:3001/climate/risk \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cidade": "Feira de Santana",
+    "intencao": "risco_chuva",
+    "panicScore": 3,
+    "mensagemOriginal": "tá chovendo muito aqui, será que vai alagar?"
+  }'
+```
+
+**Response:**
+```json
+{
+  "riskLevel": "ALTO",
+  "confidence": 0.78,
+  "summary": "Análise de 10 registros históricos para Feira de Santana...",
+  "historicalPattern": "Padrão: 4 eventos extremos. Precipitação máxima: 112.0mm.",
+  "context": [...],
+  "meta": {
+    "cidade": "Feira de Santana",
+    "collection": "clima_bahia",
+    "totalResults": 10,
+    "elapsedMs": 98
+  }
+}
+```
+
+**Campos do request:**
+
+| Campo | Tipo | Obrigatório | Descrição |
+|---|---|---|---|
+| `cidade` | string | ✅ | Cidade extraída pelo Gemini |
+| `bairro` | string | — | Bairro (enriquece busca semântica) |
+| `lat` | number | — | Latitude |
+| `lng` | number | — | Longitude |
+| `intencao` | string | — | `risco_chuva`, `previsao`, `alagamento`, `clima_geral`, `historico` |
+| `panicScore` | number | — | Score de pânico (1–5) |
+| `mensagemOriginal` | string | — | Mensagem original da usuária |
+
+### GET /climate/health
+
+```bash
+curl http://localhost:3001/climate/health
+```
+
+---
+
+## Arquitetura do Código (Clean Architecture)
+
+```
+src/
+├── domain/              ← Regras de negócio (zero dependência externa)
+│   ├── entities/        → ClimateRecord (severityScore, isExtremeEvent)
+│   ├── value-objects/   → SearchQuery (expansão), RelevanceScore (pesos)
+│   └── interfaces/      → IClimateRepository (contrato)
+├── application/         ← Use Cases (orquestração)
+│   ├── SearchClimateUseCase (validação + roteamento + busca)
+│   └── dto/             → SearchRequestDto, SearchResponseDto
+├── infrastructure/      ← Implementações concretas
+│   ├── chromadb/        → ChromaDbClimateRepository
+│   └── search/
+│       └── strategies/
+│           ├── SemanticSearch   (HNSW via ChromaDB)
+│           ├── MetadataFilter   (pré-filtragem por estação/precip)
+│           └── Reranking        (score ponderado multi-fator)
+└── presentation/        ← Controller HTTP
+    └── POST /climate/risk, GET /climate/health
+```
+
+---
+
+## Desenvolvimento
+
+```bash
+cd lambdas/climate-search
+npm install
+npm run start:dev
+```
+
+Ou via Docker:
+```bash
+docker compose up --build
+```

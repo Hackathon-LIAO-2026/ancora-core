@@ -6,6 +6,7 @@
 |---|---|
 | `csv/clima_bahia_hackathon.csv` | 21 anos de dados INMET — estações meteorológicas da Bahia |
 | `csv/clima_salvador_analise_integrada.xlsx` | Análise integrada do clima de Salvador |
+| `csv/orgaos_emergencia_bahia.csv` | Órgãos de emergência da Bahia com telefones |
 
 ## Uso
 
@@ -28,3 +29,4 @@ python data/ingest.py
 |---|---|---|
 | `clima_bahia` | `clima_bahia_hackathon.csv` | Dados diários agrupados por estação (INMET) |
 | `clima_salvador` | `clima_salvador_analise_integrada.xlsx` | Análise integrada de Salvador |
+| `orgaos_emergencia` | `orgaos_emergencia_bahia.csv` | Órgãos de emergência com telefones |

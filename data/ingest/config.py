@@ -32,6 +32,13 @@ DATASETS = {
         "loader": "xlsx",
         "chunker": "salvador",
     },
+    "orgaos": {
+        "file": "orgaos_emergencia_bahia.csv",
+        "collection": "orgaos_emergencia",
+        "description": "Órgãos de emergência da Bahia com telefones",
+        "loader": "csv_with_header",
+        "chunker": "orgaos",
+    },
 }
 
 # Colunas do CSV INMET (sem header)
