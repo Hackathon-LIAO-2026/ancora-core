@@ -16,6 +16,16 @@ functions:
           method: GET
           path: /hello
 
+  climateSearch:
+    handler: lambdas/climate-search/dist/handler.handler
+    events:
+      - http:
+          method: POST
+          path: /climate/risk
+      - http:
+          method: GET
+          path: /climate/health
+
 plugins:
   - serverless-offline
 

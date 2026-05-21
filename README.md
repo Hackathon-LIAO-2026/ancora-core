@@ -30,8 +30,7 @@ Isso sobe **tudo** automaticamente:
 
 | Serviço | URL | Função |
 |---|---|---|
-| API (Serverless Offline) | http://localhost:4000 | Lambdas Node.js |
-| Climate Search (NestJS) | http://localhost:3001 | Lambda 1 — busca semântica no ChromaDB |
+| API (Serverless Offline) | http://localhost:4000 | Todas as lambdas (`/hello`, `/climate/risk`, `/climate/health`) |
 | WAHA | http://localhost:3000 | Gateway WhatsApp |
 | n8n | http://localhost:5678 | Orquestrador de fluxos |
 | ChromaDB | http://localhost:8000 | Banco vetorial (RAG) |
