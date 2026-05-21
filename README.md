@@ -31,6 +31,7 @@ Isso sobe **tudo** automaticamente:
 | Serviço | URL | Função |
 |---|---|---|
 | API (Serverless Offline) | http://localhost:4000 | Lambdas Node.js |
+| Climate Search (NestJS) | http://localhost:3001 | Lambda 1 — busca semântica no ChromaDB |
 | WAHA | http://localhost:3000 | Gateway WhatsApp |
 | n8n | http://localhost:5678 | Orquestrador de fluxos |
 | ChromaDB | http://localhost:8000 | Banco vetorial (RAG) |
@@ -77,8 +78,14 @@ Gera `predictions.csv` e `ml/model.joblib`.
 
 ```
 ancora-core/
-├── lambdas/                  ← Funções Lambda (Serverless)
-│   └── hello/handler.js
+├── lambdas/                  ← Funções Lambda
+│   ├── hello/handler.js      ← Health check
+│   └── climate-search/       ← Lambda 1 — NestJS + ChromaDB
+│       └── src/
+│           ├── domain/       ← Entidades, Value Objects, Interfaces
+│           ├── application/  ← Use Cases e DTOs
+│           ├── infrastructure/ ← ChromaDB, estratégias de busca
+│           └── presentation/ ← Controllers HTTP
 ├── data/                     ← Dados e pipeline de ingestão
 │   ├── csv/                  ← Datasets climáticos
 │   ├── ingest/               ← Módulo Python de ingestão → ChromaDB

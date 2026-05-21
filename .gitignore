@@ -4,6 +4,9 @@ node_modules/
 # Serverless
 .serverless/
 
+# Build artifacts
+dist/
+
 # Environment
 .env
 .env.*

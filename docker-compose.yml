@@ -50,7 +50,7 @@ services:
     restart: "no"
 
   # ╔═══════════════════════════════════════════════════════════════════╗
-  # ║ API — Serverless Offline (Lambdas)                                ║
+  # ║ API — Serverless Offline (Hello / Health check)                   ║
   # ╚═══════════════════════════════════════════════════════════════════╝
   api:
     image: node:22-slim
@@ -58,7 +58,7 @@ services:
     command: sh -c "npm install && npx serverless offline start --host 0.0.0.0"
     volumes:
       - .:/app
-      - node_modules:/app/node_modules
+      - node_modules_api:/app/node_modules
     ports:
       - "4000:4000"
     environment:
@@ -66,6 +66,26 @@ services:
       CHROMA_PORT: 8000
       DATABASE_URL: postgres://default:default@postgres:5432/default
       REDIS_URL: redis://default:default@redis:6379
+
+  # ╔═══════════════════════════════════════════════════════════════════╗
+  # ║ Lambda 1 — Climate Search (NestJS + ChromaDB)                     ║
+  # ╚═══════════════════════════════════════════════════════════════════╝
+  climate-search:
+    image: node:22-slim
+    working_dir: /app
+    command: sh -c "npm install && npm run build && npm run start:prod"
+    volumes:
+      - ./lambdas/climate-search:/app
+      - node_modules_climate:/app/node_modules
+    ports:
+      - "3001:3001"
+    environment:
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      PORT: 3001
+    depends_on:
+      chromadb:
+        condition: service_healthy
 
   # ╔═══════════════════════════════════════════════════════════════════╗
   # ║ WAHA — Gateway WhatsApp                                          ║
@@ -165,7 +185,8 @@ volumes:
   pgdata:
   chroma_data:
   ingest_registry:
-  node_modules:
+  node_modules_api:
+  node_modules_climate:
   waha_sessions:
   waha_media:
   n8n_data:
