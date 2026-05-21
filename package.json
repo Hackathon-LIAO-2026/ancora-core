@@ -1,0 +1,12 @@
+{
+  "name": "ancora-serverless",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "serverless offline start",
+    "deploy": "serverless deploy --stage dev"
+  },
+  "devDependencies": {
+    "serverless": "^3.38.0",
+    "serverless-offline": "^13.3.0"
+  }
+}

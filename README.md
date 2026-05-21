@@ -12,24 +12,49 @@ Assistente de navegação climática via WhatsApp para comunidades em risco na B
 
 ÁncorA conecta moradores de áreas de risco ao abrigo seguro mais próximo via WhatsApp, usando 21 anos de dados do INMET e um modelo de linguagem que adapta a resposta ao nível de desespero da mensagem — o **Panic Score**.
 
+## Pré-requisitos
+
+- Node.js 22 (`nvm use 22`)
+- Python 3.11+
+- Docker 27+
+- Serverless Framework v3 (`npm install -g serverless@3`)
+
 ## Quick Start
 
+### 1. Infraestrutura local
+
 ```bash
-# Sobe a infraestrutura (Postgres, Redis, WAHA, n8n)
 docker-compose up -d
-
-# Roda o pipeline de ML
-pip install -r requirements.txt
-python run.py
-
-# Backend
-cd backend && npm install && npm run start:dev
-
-# Frontend
-cd frontend && npm install && npm run dev
 ```
 
-Interface: `http://localhost:3000` · API: `http://localhost:3001`
+| Serviço | URL |
+|---|---|
+| WAHA (WhatsApp gateway) | http://localhost:3000 |
+| n8n (orquestrador) | http://localhost:5678 |
+| PostgreSQL | localhost:5433 |
+| Redis | localhost:6379 |
+
+### 2. Lambdas (API)
+
+```bash
+npm install
+npm run dev
+```
+
+API disponível em `http://localhost:4000`.
+
+| Endpoint | Função |
+|---|---|
+| `GET /hello` | Health check |
+
+### 3. Pipeline de Machine Learning
+
+```bash
+pip install -r requirements.txt
+python run.py
+```
+
+Gera `predictions.csv` e `ml/model.joblib`.
 
 ---
 
@@ -55,7 +80,7 @@ Interface: `http://localhost:3000` · API: `http://localhost:3001`
 
 ## Stack
 
-`Python` `scikit-learn` `NestJS` `Next.js` `PostgreSQL` `Redis` `WAHA` `n8n` `Gemini` `Docker`
+`Node.js` `Python` `scikit-learn` `Serverless v3` `PostgreSQL` `Redis` `WAHA` `n8n` `Gemini` `Docker`
 
 ---
 
