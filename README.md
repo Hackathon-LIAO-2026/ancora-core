@@ -42,6 +42,30 @@ Isso sobe **tudo** automaticamente:
 > A ingestão dos dados climáticos no ChromaDB acontece automaticamente no startup.
 > Na segunda execução, o registry detecta que os dados não mudaram e pula a ingestão.
 
+### Como funciona a busca climática (Lambda 1)
+
+Quando a usuária manda uma mensagem no WhatsApp, o Gemini extrai a cidade e a intenção e envia para o **Climate Search**. O serviço executa um pipeline de 3 etapas:
+
+```
+Mensagem: "tá chovendo muito em Feira de Santana"
+         ↓  Gemini extrai payload
+{ cidade: "Feira de Santana", intencao: "risco_chuva", mensagemOriginal: "..." }
+         ↓  Query Expansion
+"Feira de Santana chuva forte precipitação alta risco alagamento temporal ..."
+         ↓  Busca vetorial (HNSW no ChromaDB — 216.949 documentos, 384 dims)
+20 candidatos mais próximos semanticamente
+         ↓  Metadata Filter (ex: precipMin=10mm para risco_chuva)
+Candidatos relevantes para a intenção
+         ↓  Re-ranking (similaridade 40% + severidade 30% + recência 20% + cluster 10%)
+Top 10 registros ordenados por relevância real
+         ↓  Cálculo de risco (rule-based sobre os registros encontrados)
+{ riskLevel: "ALTO", confidence: 0.78, emergencyContacts: [...] }
+```
+
+O resultado é devolvido pro n8n, que passa pro Gemini gerar a resposta empática calibrada ao **Panic Score** da usuária.
+
+> Cidades de Salvador são rejeitadas com 400 e roteadas para a Lambda 2 (risk-analysis).
+
 ### Compatibilidade de SO
 
 O `docker-compose.yml` vem configurado para **macOS Apple Silicon**. Se estiver em outro SO:
