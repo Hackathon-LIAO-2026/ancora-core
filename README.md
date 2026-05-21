@@ -14,40 +14,42 @@ Assistente de navegação climática via WhatsApp para comunidades em risco na B
 
 ## Pré-requisitos
 
-- Node.js 22 (`nvm use 22`)
-- Python 3.11+
-- Docker 27+
-- Serverless Framework v3 (`npm install -g serverless@3`)
+- Docker 27+ e Docker Compose v2
+- Node.js 22 (apenas para desenvolvimento local sem Docker)
+- Python 3.11+ (apenas para desenvolvimento local sem Docker)
 
 ## Quick Start
 
-### 1. Infraestrutura local
+### Um comando só
 
 ```bash
-docker-compose up -d
+docker compose up --build
 ```
 
-| Serviço | URL |
-|---|---|
-| WAHA (WhatsApp gateway) | http://localhost:3000 |
-| n8n (orquestrador) | http://localhost:5678 |
-| PostgreSQL | localhost:5433 |
-| Redis | localhost:6379 |
+Isso sobe **tudo** automaticamente:
 
-### 2. Lambdas (API)
+| Serviço | URL | Função |
+|---|---|---|
+| API (Serverless Offline) | http://localhost:4000 | Lambdas Node.js |
+| WAHA | http://localhost:3000 | Gateway WhatsApp |
+| n8n | http://localhost:5678 | Orquestrador de fluxos |
+| ChromaDB | http://localhost:8000 | Banco vetorial (RAG) |
+| PostgreSQL | localhost:5433 | Abrigos, sessões |
+| Redis | localhost:6379 | Cache de estado |
+| Ingest | — | Popula ChromaDB e encerra |
 
-```bash
-npm install
-npm run dev
-```
+> A ingestão dos dados climáticos no ChromaDB acontece automaticamente no startup.
+> Na segunda execução, o registry detecta que os dados não mudaram e pula a ingestão.
 
-API disponível em `http://localhost:4000`.
+### Compatibilidade de SO
 
-| Endpoint | Função |
-|---|---|
-| `GET /hello` | Health check |
+O `docker-compose.yml` vem configurado para **macOS Apple Silicon**. Se estiver em outro SO:
 
-### 3. Pipeline de Machine Learning
+1. Abra `docker-compose.yml`
+2. Procure os blocos `WAHA` e `n8n`
+3. Comente o bloco ativo e descomente o bloco do seu SO (Linux ou Windows)
+
+### Pipeline de Machine Learning (separado)
 
 ```bash
 pip install -r requirements.txt
@@ -55,6 +57,25 @@ python run.py
 ```
 
 Gera `predictions.csv` e `ml/model.joblib`.
+
+---
+
+## Estrutura do Projeto
+
+```
+ancora-core/
+├── lambdas/                  ← Funções Lambda (Serverless)
+│   └── hello/handler.js
+├── data/                     ← Dados e pipeline de ingestão
+│   ├── csv/                  ← Datasets climáticos
+│   ├── ingest/               ← Módulo Python de ingestão → ChromaDB
+│   ├── Dockerfile
+│   └── requirements.txt
+├── docs/                     ← Documentação técnica
+├── docker-compose.yml        ← Sobe tudo com um comando
+├── serverless.yml            ← Configuração das Lambdas
+└── package.json
+```
 
 ---
 
@@ -80,7 +101,7 @@ Gera `predictions.csv` e `ml/model.joblib`.
 
 ## Stack
 
-`Node.js` `Python` `scikit-learn` `Serverless v3` `PostgreSQL` `Redis` `WAHA` `n8n` `Gemini` `Docker`
+`Node.js` `Python` `scikit-learn` `Serverless v3` `PostgreSQL` `Redis` `ChromaDB` `WAHA` `n8n` `Gemini` `Docker`
 
 ---
 

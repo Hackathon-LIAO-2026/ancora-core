@@ -21,6 +21,9 @@ ml/model.joblib
 ml/confusion_matrix.png
 predictions.csv
 
+# Datasets grandes (> 100MB — não cabem no GitHub)
+data/csv/clima_bahia_hackathon.csv
+
 # OS
 .DS_Store
 Thumbs.db

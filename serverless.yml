@@ -10,7 +10,7 @@ provider:
 
 functions:
   hello:
-    handler: functions/hello/handler.hello
+    handler: lambdas/hello/handler.hello
     events:
       - http:
           method: GET
