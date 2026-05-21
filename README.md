@@ -49,6 +49,19 @@ O `docker-compose.yml` vem configurado para **macOS Apple Silicon**. Se estiver 
 2. Procure os blocos `WAHA` e `n8n`
 3. Comente o bloco ativo e descomente o bloco do seu SO (Linux ou Windows)
 
+### Dataset obrigatório (ingestão ChromaDB)
+
+O dataset `clima_bahia_hackathon.csv` (549MB) não está no repositório por exceder o limite do GitHub. Para a ingestão funcionar:
+
+1. Baixe o dataset fornecido pela **Escavador** (disponibilizado no edital do hackathon)
+2. Coloque o arquivo dentro de `data/csv/`:
+
+```bash
+cp ~/Downloads/clima_bahia_hackathon.csv data/csv/
+```
+
+> Sem esse arquivo, o serviço `ingest` vai pular a collection `clima_bahia` e popular apenas `clima_salvador`.
+
 ### Pipeline de Machine Learning (separado)
 
 ```bash
