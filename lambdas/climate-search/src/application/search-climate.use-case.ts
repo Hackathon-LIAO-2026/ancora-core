@@ -21,30 +21,71 @@ export class SearchClimateUseCase {
     'salvador', 'ssa', 'soteropolis',
   ];
 
+  /**
+   * Flags de filtro automático por intenção.
+   * Garante que a busca retorne dados relevantes ao contexto.
+   *
+   * Ex: se a intenção é "alagamento", só retorna registros com precipitação >= 20mm.
+   * Isso evita que a busca semântica traga dias secos só porque a estação é próxima.
+   */
+  private readonly INTENT_FILTERS: Record<string, { precipMin?: number; precipMax?: number }> = {
+    alagamento: { precipMin: 20 },
+    risco_chuva: { precipMin: 10 },
+    previsao: {},
+    clima_geral: {},
+    historico: {},
+  };
+
+  constructor(
+    private readonly searchPipeline: SearchPipelineService,
+    private readonly findEmergencyContact: FindEmergencyContactUseCase,
+  ) {}
+
   async execute(dto: SearchRequestDto): Promise<SearchResponseDto> {
     const start = Date.now();
 
     // Validação de domínio — Salvador não pertence a esta Lambda
     this.validateCidade(dto.cidade);
 
-    // Rotear para a collection correta baseado na cidade
+    // Rotear para a collection correta
     const collection = this.resolveCollection(dto.cidade);
 
-    // Montar texto de busca a partir do payload do Gemini
+    // Montar texto de busca
     const searchText = this.buildSearchText(dto);
+
+    // Resolver flags de filtro baseado na intenção
+    const intentFilter = this.resolveIntentFilters(dto.intencao);
 
     const query = new SearchQuery({
       text: searchText,
       collection,
-      topK: 10,
+      topK: 20, // Busca mais candidatos pra compensar filtros
+      filters: {
+        precipMin: intentFilter.precipMin,
+        precipMax: intentFilter.precipMax,
+      },
     });
 
     this.logger.log(
-      `[${dto.cidade}] Buscando em "${collection}": "${searchText}" (intenção: ${dto.intencao || 'geral'})`,
+      `[${dto.cidade}] Buscando em "${collection}" | intenção: ${dto.intencao || 'geral'} | ` +
+      `filtros: precipMin=${intentFilter.precipMin || 'N/A'}`,
     );
 
-    // Executa pipeline de busca (semantic + filter + reranking)
-    const records = await this.searchPipeline.search(query);
+    // Executa pipeline de busca (semantic + metadata filter + reranking)
+    let records = await this.searchPipeline.search(query);
+
+    // Fallback: se filtro restritivo não retornou resultados, tenta sem filtro
+    if (records.length === 0 && intentFilter.precipMin) {
+      this.logger.warn(
+        `[${dto.cidade}] Nenhum resultado com filtro precipMin=${intentFilter.precipMin}. Tentando sem filtro...`,
+      );
+      const fallbackQuery = new SearchQuery({
+        text: searchText,
+        collection,
+        topK: 10,
+      });
+      records = await this.searchPipeline.search(fallbackQuery);
+    }
 
     const elapsed = Date.now() - start;
 
@@ -64,14 +105,8 @@ export class SearchClimateUseCase {
     return response;
   }
 
-  constructor(
-    private readonly searchPipeline: SearchPipelineService,
-    private readonly findEmergencyContact: FindEmergencyContactUseCase,
-  ) {}
-
   /**
    * Valida que a cidade não é Salvador.
-   * Salvador deve ser roteada para a Lambda 2 (risk-analysis).
    */
   private validateCidade(cidade: string): void {
     const normalized = cidade.toLowerCase().trim();
@@ -85,39 +120,44 @@ export class SearchClimateUseCase {
 
   /**
    * Decide qual collection usar.
-   * Esta Lambda atende APENAS cidades fora de Salvador.
-   * Salvador é responsabilidade da Lambda 2 (risk-analysis).
    */
   private resolveCollection(cidade: string): string {
     return 'clima_bahia';
   }
 
   /**
+   * Resolve flags de filtro automático baseado na intenção.
+   * Intenções de risco/alagamento exigem precipitação mínima
+   * pra evitar retornar dias secos irrelevantes.
+   */
+  private resolveIntentFilters(intencao?: string): { precipMin?: number; precipMax?: number } {
+    if (!intencao) return {};
+    return this.INTENT_FILTERS[intencao] || {};
+  }
+
+  /**
    * Monta o texto de busca semântica a partir do payload do Gemini.
-   * Combina cidade + bairro + intenção + mensagem original pra
-   * maximizar a qualidade da busca vetorial.
+   * Combina cidade + bairro + intenção + mensagem original.
    */
   private buildSearchText(dto: SearchRequestDto): string {
     const parts: string[] = [];
 
-    // Contexto geográfico
     parts.push(dto.cidade);
     if (dto.bairro) parts.push(dto.bairro);
 
-    // Intenção mapeada pra termos climáticos
+    // Intenção mapeada pra termos climáticos (expansão de query)
     const intencaoMap: Record<string, string> = {
-      risco_chuva: 'chuva forte precipitação alta risco alagamento',
-      previsao: 'previsão tempo clima temperatura',
-      alagamento: 'alagamento enchente precipitação extrema inundação',
-      clima_geral: 'clima temperatura umidade vento',
-      historico: 'histórico dados passado registros',
+      risco_chuva: 'chuva forte precipitação alta risco alagamento temporal',
+      previsao: 'previsão tempo clima temperatura umidade',
+      alagamento: 'alagamento enchente precipitação extrema inundação chuva intensa',
+      clima_geral: 'clima temperatura umidade vento pressão',
+      historico: 'histórico dados passado registros clima',
     };
 
     if (dto.intencao && intencaoMap[dto.intencao]) {
       parts.push(intencaoMap[dto.intencao]);
     }
 
-    // Mensagem original da usuária (contexto rico)
     if (dto.mensagemOriginal) {
       parts.push(dto.mensagemOriginal);
     }

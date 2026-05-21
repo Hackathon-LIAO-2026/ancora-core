@@ -107,10 +107,14 @@ CSV (5.2M linhas horárias)
 
 **Como funciona no ÁncorA:**
 ```
-"chuva forte" → "chuva forte precipitação temporal alagamento"
-"calor"       → "calor temperatura alta onda de calor"
-"vento"       → "vento rajada ventania vendaval"
+"chuva" → "chuva precipitação temporal alagamento"
+"calor" → "calor temperatura alta onda de calor"
+"vento" → "vento rajada ventania vendaval"
+"frio"  → "frio temperatura baixa friagem"
+"seca"  → "seca estiagem sem chuva precipitação zero"
 ```
+
+> **Nota:** apenas o **primeiro termo que der match** é expandido por query (comportamento do `SearchQuery.expandedText`). A expansão por intenção (`risco_chuva`, `alagamento`, etc.) ocorre separadamente em `SearchClimateUseCase.buildSearchText`.
 
 Isso garante que a busca semântica encontre documentos relevantes mesmo que usem termos diferentes da mensagem original.
 
@@ -123,7 +127,7 @@ Isso garante que a busca semântica encontre documentos relevantes mesmo que use
 | Fator | Peso | Lógica |
 |---|---|---|
 | Similaridade semântica | 40% | Distância vetorial (HNSW) convertida em similaridade |
-| Severidade climática | 30% | Eventos extremos (precip > 50mm, temp > 38°C, rajada > 60km/h) |
+| Severidade climática | 30% | Eventos extremos (precip > 50mm, temp > 35°C, rajada > 60km/h) |
 | Recência temporal | 20% | Decay exponencial — dados recentes pesam mais (half-life: 365 dias) |
 | Cluster bonus | 10% | Múltiplos resultados da mesma estação = padrão consistente |
 
@@ -179,16 +183,18 @@ Quando o `riskLevel` é **ALTO** ou **CRÍTICO**, a Lambda busca automaticamente
 | Órgão | Telefone | Cobertura | Risco mínimo |
 |---|---|---|---|
 | Defesa Civil Estadual | (71) 3116-5399 | Bahia | ALTO |
-| SAMU | 192 | Nacional | CRÍTICO |
+| SAMU | 192 | Nacional | ALTO |
 | Bombeiros | 193 | Nacional | ALTO |
 | Defesa Civil Feira de Santana | (75) 3602-8200 | Feira de Santana | ALTO |
 | Defesa Civil Ilhéus | (73) 3234-5600 | Ilhéus | ALTO |
-| CEMADEN | 199 | Nacional | MÉDIO |
+| CEMADEN | 199 | Nacional | ALTO |
 | Cruz Vermelha Bahia | (71) 3336-2200 | Bahia | ALTO |
 
 **Lógica:**
 - `riskLevel == BAIXO ou MÉDIO` → `emergencyContacts: []` (vazio)
 - `riskLevel == ALTO ou CRÍTICO` → busca semântica na collection `orgaos_emergencia`, filtra por cobertura (cidade, estado ou nacional)
+
+> **Nota:** nenhum contato é retornado para nível MÉDIO. O risco mínimo para acionar qualquer órgão é **ALTO**.
 
 **Exemplo no response:**
 ```json
