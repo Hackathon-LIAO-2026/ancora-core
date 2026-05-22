@@ -5,10 +5,6 @@ import { IClimateRepository } from '../../domain/interfaces/climate-repository.i
 import { ClimateRecord, ClimateMetadata } from '../../domain/entities/climate-record.entity';
 import { SearchQuery } from '../../domain/value-objects/search-query.vo';
 
-/**
- * Implementação concreta do repositório usando ChromaDB.
- * Responsável apenas por traduzir entre domínio e infraestrutura.
- */
 @Injectable()
 export class ChromaDbClimateRepository implements IClimateRepository, OnModuleInit {
   private client: ChromaClient;
@@ -21,7 +17,9 @@ export class ChromaDbClimateRepository implements IClimateRepository, OnModuleIn
     const port = this.config.get<number>('CHROMA_PORT', 8000);
 
     this.client = new ChromaClient({
-      path: `http://${host}:${port}`,
+      host,
+      port: Number(port),
+      ssl: false,
     });
 
     this.logger.log(`ChromaDB conectado em ${host}:${port}`);

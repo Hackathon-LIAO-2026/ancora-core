@@ -1,19 +1,26 @@
-import { IsString, IsOptional, IsNumber, IsEnum } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsNotEmpty,
+  Min,
+  Max,
+  IsIn,
+} from 'class-validator';
 
-/**
- * Payload que o n8n/Gemini envia para a Lambda.
- * O Gemini extrai esses campos da mensagem da usuária.
- */
-export enum Intencao {
-  RISCO_CHUVA = 'risco_chuva',
-  PREVISAO = 'previsao',
-  ALAGAMENTO = 'alagamento',
-  CLIMA_GERAL = 'clima_geral',
-  HISTORICO = 'historico',
-}
+export const INTENCOES_VALIDAS = [
+  'risco_chuva',
+  'previsao',
+  'alagamento',
+  'clima_geral',
+  'historico',
+] as const;
+
+export type Intencao = (typeof INTENCOES_VALIDAS)[number];
 
 export class SearchRequestDto {
   @IsString()
+  @IsNotEmpty()
   cidade: string;
 
   @IsOptional()
@@ -22,18 +29,24 @@ export class SearchRequestDto {
 
   @IsOptional()
   @IsNumber()
+  @Min(-90)
+  @Max(90)
   lat?: number;
 
   @IsOptional()
   @IsNumber()
+  @Min(-180)
+  @Max(180)
   lng?: number;
 
   @IsOptional()
-  @IsString()
-  intencao?: string;
+  @IsIn(INTENCOES_VALIDAS)
+  intencao?: Intencao;
 
   @IsOptional()
   @IsNumber()
+  @Min(1)
+  @Max(5)
   panicScore?: number;
 
   @IsOptional()

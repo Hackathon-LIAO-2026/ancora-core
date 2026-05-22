@@ -56,14 +56,15 @@ export class SearchClimateUseCase {
     // Resolver flags de filtro baseado na intenção
     const intentFilter = this.resolveIntentFilters(dto.intencao);
 
+    const activeFilters = Object.fromEntries(
+      Object.entries(intentFilter).filter(([, v]) => v !== undefined),
+    );
+
     const query = new SearchQuery({
       text: searchText,
       collection,
       topK: 20, // Busca mais candidatos pra compensar filtros
-      filters: {
-        precipMin: intentFilter.precipMin,
-        precipMax: intentFilter.precipMax,
-      },
+      filters: Object.keys(activeFilters).length > 0 ? activeFilters : undefined,
     });
 
     this.logger.log(
@@ -96,10 +97,11 @@ export class SearchClimateUseCase {
     // Monta response com risco
     const response = SearchResponseDto.fromRecords(records, dto.cidade, collection, elapsed);
 
-    // Busca órgãos de emergência baseado no riskLevel
+    // Busca órgãos de emergência: risco >= MÉDIO ou panicScore >= 4
     response.emergencyContacts = await this.findEmergencyContact.execute(
       response.riskLevel,
       dto.cidade,
+      dto.panicScore,
     );
 
     return response;

@@ -30,9 +30,12 @@ export class FindEmergencyContactUseCase {
   async execute(
     riskLevel: string,
     cidade: string,
+    panicScore?: number,
   ): Promise<EmergencyContact[]> {
-    // Só retorna contatos quando risco >= ALTO
-    if (riskLevel === 'BAIXO' || riskLevel === 'MÉDIO') {
+    // Retorna contatos quando risco >= MÉDIO ou panicScore >= 4
+    const riskIsRelevant = riskLevel !== 'BAIXO';
+    const userIsPanicking = panicScore !== undefined && panicScore >= 4;
+    if (!riskIsRelevant && !userIsPanicking) {
       return [];
     }
 
