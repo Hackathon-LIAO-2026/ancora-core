@@ -1,0 +1,39 @@
+# Dependencies
+node_modules/
+
+# Serverless
+.serverless/
+
+# Build artifacts
+dist/
+
+# Environment
+.env
+.env.*
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+
+# ML artifacts (gerados pelo run.py)
+ml/model.pkl
+ml/model.joblib
+ml/confusion_matrix.png
+predictions.csv
+
+# Datasets grandes (> 100MB — não cabem no GitHub)
+data/csv/clima_bahia_hackathon.csv
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+
+# Logs
+*.log

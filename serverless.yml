@@ -1,0 +1,69 @@
+service: ancora-serverless
+
+frameworkVersion: '3'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: sa-east-1
+  stage: ${opt:stage, 'dev'}
+  environment:
+    CHROMA_HOST: ${env:CHROMA_HOST, 'localhost'}
+    CHROMA_PORT: ${env:CHROMA_PORT, '8000'}
+    DATABASE_URL: ${env:DATABASE_URL, ''}
+    REDIS_URL: ${env:REDIS_URL, ''}
+
+functions:
+  hello:
+    handler: lambdas/hello/handler.hello
+    events:
+      - http:
+          method: GET
+          path: /hello
+
+  climateSearch:
+    handler: lambdas/climate-search/dist/handler.handler
+    timeout: 30
+    events:
+      - http:
+          method: POST
+          path: /climate/risk
+      - http:
+          method: GET
+          path: /climate/health
+
+  riskAnalysis:
+    handler: lambdas/risk-analysis/dist/handler.handler
+    timeout: 30
+    events:
+      - http:
+          method: POST
+          path: /risk/analyze
+      - http:
+          method: GET
+          path: /risk/shelters
+      - http:
+          method: GET
+          path: /risk/health
+
+  contactSearch:
+    handler: lambdas/contact-search/dist/handler.handler
+    timeout: 10
+    events:
+      - http:
+          method: POST
+          path: /contacts/search
+      - http:
+          method: GET
+          path: /contacts/all
+      - http:
+          method: GET
+          path: /contacts/health
+
+plugins:
+  - serverless-offline
+
+custom:
+  serverless-offline:
+    httpPort: 4000
+    noPrependStageInUrl: true

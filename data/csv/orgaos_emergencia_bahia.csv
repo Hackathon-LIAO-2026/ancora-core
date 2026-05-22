@@ -1,0 +1,14 @@
+orgao,telefone,tipo,cobertura,descricao,risco_minimo
+Defesa Civil Estadual,(71) 3116-5399,defesa_civil,Bahia,Coordenação estadual de emergências e desastres naturais,ALTO
+SAMU 192,192,saude,Nacional,Serviço de Atendimento Móvel de Urgência para emergências médicas,CRÍTICO
+Bombeiros 193,193,bombeiros,Nacional,Corpo de Bombeiros para resgates e salvamentos,ALTO
+Defesa Civil Salvador,(71) 3202-5312,defesa_civil,Salvador,Defesa Civil municipal de Salvador,ALTO
+Defesa Civil Feira de Santana,(75) 3602-8200,defesa_civil,Feira de Santana,Defesa Civil municipal de Feira de Santana,ALTO
+Defesa Civil Vitória da Conquista,(77) 3424-8500,defesa_civil,Vitória da Conquista,Defesa Civil municipal de Vitória da Conquista,ALTO
+Defesa Civil Ilhéus,(73) 3234-5600,defesa_civil,Ilhéus,Defesa Civil municipal de Ilhéus,ALTO
+Defesa Civil Itabuna,(73) 3211-7200,defesa_civil,Itabuna,Defesa Civil municipal de Itabuna,ALTO
+CODESAL Salvador,(71) 3235-0010,defesa_civil,Salvador,Órgão de defesa civil e encostas de Salvador,MÉDIO
+Polícia Militar 190,190,policia,Nacional,Polícia Militar para emergências de segurança,CRÍTICO
+Centro de Monitoramento de Alerta (CEMADEN),199,monitoramento,Nacional,Alertas de desastres naturais em tempo real,MÉDIO
+Cruz Vermelha Bahia,(71) 3336-2200,assistencia,Bahia,Assistência humanitária em desastres,ALTO
+Assistência Social Salvador,(71) 3202-2300,assistencia,Salvador,Secretaria de Assistência Social — acolhimento emergencial,MÉDIO

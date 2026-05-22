@@ -1,57 +1,186 @@
-  version: '3.8'
+services:
+  redis:
+    image: redis:latest
+    command: redis-server --requirepass default
+    environment:
+      REDIS_USER: default
+      REDIS_PASSWORD: default
+    ports:
+      - "6379:6379"
 
-  services:
-    redis:
-      image: redis:latest
-      command: redis-server --requirepass default
-      environment:
-        REDIS_USER: default
-        REDIS_PASSWORD: default
-      ports:
-        - "6379:6379"
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: default
+      POSTGRES_PASSWORD: default
+      POSTGRES_DB: default
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
 
-    postgres:
-      image: postgres:latest
-      environment:
-        POSTGRES_USER: default
-        POSTGRES_PASSWORD: default
-        POSTGRES_DB: default
-      ports:
-        - "5433:5432"
-      volumes:
-        - pgdata:/var/lib/postgresql/data
+  chromadb:
+    image: chromadb/chroma:latest
+    ports:
+      - "8000:8000"
+    volumes:
+      - chroma_data:/chroma/chroma
+    environment:
+      - ANONYMIZED_TELEMETRY=false
+    healthcheck:
+      test: ["CMD-SHELL", "chroma --version"]
+      interval: 3s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
 
-    waha:
-      image: devlikeapro/waha:arm-2026.3.4
-      environment:
-        WHATSAPP_HOOK_URL: http://host.docker.internal:5678/webhook/webhook
-        WHATSAPP_DEFAULT_ENGINE: GOWS
-        WHATSAPP_HOOK_EVENTS: message
-        WAHA_NO_API_KEY: true
-        WAHA_DASHBOARD_NO_PASSWORD: true
-        WHATSAPP_SWAGGER_NO_PASSWORD: true
-      volumes:
-        - waha_sessions:/app/.sessions
-        - waha_media:/app/.media
-      ports:
-        - "3000:3000"
+  # ── Ingestão automática (roda 1x no startup, depois morre) ─────────
+  ingest:
+    build:
+      context: ./data
+    environment:
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+    volumes:
+      - ./data/csv:/app/csv:ro
+      - ingest_registry:/app
+    depends_on:
+      chromadb:
+        condition: service_healthy
+    restart: "no"
 
-    n8n:
-      image: n8nio/n8n:latest
-      environment:
-        WEBHOOK_URL: http://host.docker.internal:5678
-        N8N_HOST: host.docker.internal
-        GENERIC_TIMEZONE: America/Sao_Paulo
-        N8N_LOG_LEVEL: debug
-        N8N_SECURE_COOKIE: false
-        N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
-      volumes:
-        - n8n_data:/home/node/.n8n
-      ports:
-        - "5678:5678"
+  # ╔═══════════════════════════════════════════════════════════════════╗
+  # ║ API — Serverless Offline (todas as lambdas na porta 4000)         ║
+  # ╚═══════════════════════════════════════════════════════════════════╝
+  api:
+    image: node:22-slim
+    working_dir: /app
+    command: >
+      sh -c "cd lambdas/climate-search && npm install && npm run build &&
+             cd /app/lambdas/risk-analysis && npm install && npm run build &&
+             cd /app/lambdas/contact-search && npm install && npm run build &&
+             cd /app && npm install && npx serverless offline start --host 0.0.0.0"
+    volumes:
+      - .:/app
+      - node_modules_api:/app/node_modules
+      - node_modules_climate:/app/lambdas/climate-search/node_modules
+      - node_modules_risk:/app/lambdas/risk-analysis/node_modules
+      - node_modules_contact:/app/lambdas/contact-search/node_modules
+    ports:
+      - "4000:4000"
+    environment:
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: 8000
+      DATABASE_URL: postgres://default:default@postgres:5432/default
+      REDIS_URL: redis://default:default@redis:6379
+    depends_on:
+      chromadb:
+        condition: service_healthy
+      postgres:
+        condition: service_started
 
-  volumes:
-    pgdata:
-    waha_sessions:
-    waha_media:
-    n8n_data:
+  # ╔═══════════════════════════════════════════════════════════════════╗
+  # ║ WAHA — Gateway WhatsApp                                          ║
+  # ║                                                                   ║
+  # ║ Descomente APENAS o bloco do seu SO e comente os outros:          ║
+  # ╚═══════════════════════════════════════════════════════════════════╝
+
+  # ── macOS Apple Silicon (M1/M2/M3) ─────────────────────────────────
+  waha:
+    image: devlikeapro/waha:arm-2026.3.4
+    environment:
+      WHATSAPP_HOOK_URL: http://host.docker.internal:5678/webhook/webhook
+      WHATSAPP_DEFAULT_ENGINE: GOWS
+      WHATSAPP_HOOK_EVENTS: message
+      WAHA_NO_API_KEY: true
+      WAHA_DASHBOARD_NO_PASSWORD: true
+      WHATSAPP_SWAGGER_NO_PASSWORD: true
+    volumes:
+      - waha_sessions:/app/.sessions
+      - waha_media:/app/.media
+    ports:
+      - "3000:3000"
+
+  # ── Linux (x86_64) ─────────────────────────────────────────────────
+  # waha:
+  #   image: devlikeapro/waha:2026.3.4
+  #   environment:
+  #     WHATSAPP_HOOK_URL: http://host.docker.internal:5678/webhook/webhook
+  #     WHATSAPP_DEFAULT_ENGINE: GOWS
+  #     WHATSAPP_HOOK_EVENTS: message
+  #     WAHA_NO_API_KEY: true
+  #     WAHA_DASHBOARD_NO_PASSWORD: true
+  #     WHATSAPP_SWAGGER_NO_PASSWORD: true
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   volumes:
+  #     - waha_sessions:/app/.sessions
+  #     - waha_media:/app/.media
+  #   ports:
+  #     - "3000:3000"
+
+  # ── Windows (Docker Desktop / WSL2) ────────────────────────────────
+  # waha:
+  #   image: devlikeapro/waha:2026.3.4
+  #   environment:
+  #     WHATSAPP_HOOK_URL: http://host.docker.internal:5678/webhook/webhook
+  #     WHATSAPP_DEFAULT_ENGINE: GOWS
+  #     WHATSAPP_HOOK_EVENTS: message
+  #     WAHA_NO_API_KEY: true
+  #     WAHA_DASHBOARD_NO_PASSWORD: true
+  #     WHATSAPP_SWAGGER_NO_PASSWORD: true
+  #   volumes:
+  #     - waha_sessions:/app/.sessions
+  #     - waha_media:/app/.media
+  #   ports:
+  #     - "3000:3000"
+
+  # ╔═══════════════════════════════════════════════════════════════════╗
+  # ║ n8n — Orquestrador de fluxos                                     ║
+  # ║                                                                   ║
+  # ║ Descomente APENAS o bloco do seu SO e comente os outros:          ║
+  # ╚═══════════════════════════════════════════════════════════════════╝
+
+  # ── macOS / Windows ─────────────────────────────────────────────────
+  n8n:
+    image: n8nio/n8n:latest
+    environment:
+      WEBHOOK_URL: http://host.docker.internal:5678
+      N8N_HOST: host.docker.internal
+      GENERIC_TIMEZONE: America/Sao_Paulo
+      N8N_LOG_LEVEL: debug
+      N8N_SECURE_COOKIE: false
+      N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+    volumes:
+      - n8n_data:/home/node/.n8n
+    ports:
+      - "5678:5678"
+
+  # ── Linux ───────────────────────────────────────────────────────────
+  # n8n:
+  #   image: n8nio/n8n:latest
+  #   environment:
+  #     WEBHOOK_URL: http://host.docker.internal:5678
+  #     N8N_HOST: host.docker.internal
+  #     GENERIC_TIMEZONE: America/Sao_Paulo
+  #     N8N_LOG_LEVEL: debug
+  #     N8N_SECURE_COOKIE: false
+  #     N8N_COMMUNITY_PACKAGES_ALLOW_TOOL_USAGE: true
+  #   extra_hosts:
+  #     - "host.docker.internal:host-gateway"
+  #   volumes:
+  #     - n8n_data:/home/node/.n8n
+  #   ports:
+  #     - "5678:5678"
+
+volumes:
+  pgdata:
+  chroma_data:
+  ingest_registry:
+  node_modules_api:
+  node_modules_climate:
+  node_modules_risk:
+  node_modules_contact:
+  waha_sessions:
+  waha_media:
+  n8n_data:

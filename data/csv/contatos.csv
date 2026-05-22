@@ -1,0 +1,4 @@
+id,nome_completo,primeiro_nome,sobrenome,telefone_raw,ddd,numero_local,numero_formatado,tipo_numero,operadora_provavel,estado_ddd,regiao_ddd,pais,codigo_pais,formato_e164
+1,Atila Avila,Atila,Avila,71 8204-1743,71,82041743,+55 71 8204-1743,Celular (8xxx),Provável Vivo/Claro,Bahia,Nordeste,Brasil,+55,+557182041743
+2,Eder Natan,Eder,Natan,77 8130-9491,77,81309491,+55 77 8130-9491,Celular (8xxx),Provável Vivo/Claro,Bahia (interior — Vitória da Conquista/Barreiras),Nordeste,Brasil,+55,+557781309491
+3,Moises de Jesus,Moises,de Jesus,71 993468650,71,993468650,+55 71 99346-8650,Celular (9xxxx),Provável Claro/Tim,Bahia,Nordeste,Brasil,+55,+5571993468650
