@@ -1,0 +1,1223 @@
+{
+  "name": "ÁncorA v5 — WhatsApp Completo (Texto + Voz + Foto + Disparo)",
+  "nodes": [
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={\"error\":\"Unauthorized\"}",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -480,
+        1408
+      ],
+      "id": "af4693f4-bd95-433b-a8b9-5540b831e4b6",
+      "name": "401"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "webhook",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -720,
+        208
+      ],
+      "id": "95543d13-b4ab-40d6-ba99-a930906099ba",
+      "name": "Webhook WAHA",
+      "webhookId": "waha-entrada"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ancora/disparo",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -720,
+        1200
+      ],
+      "id": "6bed354e-1a1b-4b2f-adc7-24659239fcd1",
+      "name": "Webhook Defesa Civil",
+      "webhookId": "defesa-civil-disparo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse entrada WAHA — detecta tipo de mídia\nconst body = $input.first().json.body ?? $input.first().json;\nconst msg = body.message ?? body.payload ?? body;\n\nconst mediaUrl = msg.mediaUrl || msg.media?.url || body.mediaUrl || null;\nconst mimetype = msg.mimetype || msg.media?.mimetype || '';\nconst hasImage = !!(mediaUrl && mimetype.startsWith('image/'));\nconst hasAudio = !!(mediaUrl && (mimetype.startsWith('audio/') || mimetype.includes('ogg')));\nconst text = msg.body || msg.text || msg.message || '';\n\nreturn [{ json: {\n  session: body.session || 'default',\n  chatId: msg.from || body.chatId || '',\n  payload_id: msg.id || body.payload?.id || '',\n  pushName: msg.pushName || msg._data?.Info?.PushName || msg.notifyName || 'usuário',\n  sessionId: (msg.from || body.chatId || 'unknown').replace('@c.us',''),\n  whatsappId: msg.from || body.chatId || '',\n  message: text,\n  nome: msg.pushName || msg._data?.Info?.PushName || msg.notifyName || 'usuário',\n  hasImage,\n  hasAudio,\n  hasText: !!text && !hasImage && !hasAudio,\n  mediaUrl,\n  mimetype\n}}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -480,
+        208
+      ],
+      "id": "c16d4b4c-22d1-455b-9199-199a4592f135",
+      "name": "Parse WAHA"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.hasImage }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "c-img"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "IMAGEM"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.hasAudio }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "c-aud"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "AUDIO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.hasText }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equals"
+                    },
+                    "id": "c-txt"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TEXTO"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        -240,
+        208
+      ],
+      "id": "3b401190-2e1c-415c-883b-5b208af004cc",
+      "name": "Tipo Mídia?"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Descreva esta imagem de emergência climática em 2 frases: {{ $json.mediaUrl }}",
+        "options": {
+          "systemMessage": "# Vision Agent (Gemini Vision)\n\nO Vision Agent é responsável por processar e descrever imagens enviadas pelos usuários via WhatsApp, identificando situações de emergência climática.\n\n## Responsabilidades\n\n- Analisar imagens de alagamentos, deslizamentos ou danos estruturais.\n- Estimar o nível da água e riscos visíveis.\n- Converter a percepção visual em um resumo textual para o Classificador.\n\n## Configuração Técnica\n\n- **Modelo:** `gemini-2.5-flash`\n- **Temperatura:** 0.1\n- **Input:** `mediaUrl` (URL da imagem no gateway WAHA).\n\n## System Message (Prompt)\n\n> Descreva objetivamente: nível de água, danos visíveis, risco. Máximo 2 frases. Se não conseguir ver a imagem, diga 'Imagem recebida — descreva sua situação por texto ou áudio'.\n\n## Exemplo de Output\n\n`[FOTO] Água atingindo a altura dos joelhos na rua, dificultando a passagem de veículos. Risco moderado de invasão em residências.`\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "9c847252-dd49-43dd-a6e0-776dc4285a1d",
+      "name": "Gemini Vision"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-pro-preview",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        0,
+        208
+      ],
+      "id": "a6dd3130-3c2f-4022-958e-cef23b98c2c6",
+      "name": "LLM Vision",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const desc = $input.first().json.output || $input.first().json.text || 'Foto recebida';\nconst ctx = $('Tipo Mídia?').item.json;\nreturn [{ json: { ...ctx, message: '[FOTO] ' + desc + (ctx.message ? '. ' + ctx.message : ''), hasImage: false, hasText: true }}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "id": "c1a47355-2ce8-4296-ab9c-07a8bba41e00",
+      "name": "Texto + Foto"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Transcreva este áudio fielmente. Apenas o texto falado: {{ $json.mediaUrl }}",
+        "options": {
+          "systemMessage": "Transcreva o áudio. Retorne apenas o texto falado sem comentários. Se não conseguir, retorne 'Não consegui ouvir — pode repetir por texto?'"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        0,
+        304
+      ],
+      "id": "80d88ba4-3350-4289-8029-a69c400fb5df",
+      "name": "Gemini Transcrição"
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-3-pro-preview",
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        0,
+        512
+      ],
+      "id": "3010b2bf-375f-4151-96e7-055722341f0a",
+      "name": "LLM Áudio",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const trans = $input.first().json.output || $input.first().json.text || '';\nconst ctx = $('Tipo Mídia?').item.json;\nreturn [{ json: { ...ctx, message: '[VOZ] ' + trans, hasAudio: false, hasText: true }}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        304
+      ],
+      "id": "dd41fe93-70ef-4967-98d5-6644121541a5",
+      "name": "Texto + Áudio"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=SESSÃO: {{ $json.sessionId }}\nNOME: {{ $json.nome }}\nMENSAGEM: {{ $json.message }}",
+        "options": {
+          "systemMessage": "# ÁncorA — Classificador v5\n\nClassifique a mensagem. Retorne APENAS JSON.\n\n## PANIC SCORE\n1=informativo, 2=preocupação, 3=alerta, 4=emergência, 5=perigo de vida\n\n[FOTO] com água/enchente → mínimo 3\n[VOZ] com desespero/gritos → mínimo 4\n\n## BAIRROS SALVADOR\nLiberdade, Cajazeiras, Sussuarana, Boca do Rio, Plataforma, Subúrbio, Pau da Lima, Lobato, São Caetano, Valéria, Fazenda Coutos, Mussurunga, Itapuã, Pernambués, Saramandaia, Bom Juá, Calabetão, Sete de Abril.\n\n## SAÍDA\n{\"panicScore\":<1-5>,\"riskLevel\":\"BAIXO|MEDIO|ALTO|CRITICO\",\"isSalvador\":<bool>,\"bairroDetectado\":\"<ou null>\",\"cidadeDetectada\":\"<cidade>\",\"tipoRisco\":\"ALAGAMENTO|DESLIZAMENTO|ENCHENTE|DESCONHECIDO\",\"resumoContexto\":\"<frase>\",\"ROUTE\":\"INFO|SALVADOR\"}\n\nROUTE: panicScore<=2 OU !isSalvador → INFO. panicScore>=3 E isSalvador → SALVADOR"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        480,
+        208
+      ],
+      "id": "df8eda85-ed7d-4ebe-8ba0-0dbc29035d12",
+      "name": "Classificador"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.1
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        480,
+        432
+      ],
+      "id": "addb16b3-4710-4b71-ac3f-800e1b50bbab",
+      "name": "LLM Classificador",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=cls_{{ $json.sessionId }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 4
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        608,
+        432
+      ],
+      "id": "d37c3a46-67bd-4ff7-9897-52ba973caeaa",
+      "name": "Redis Class",
+      "credentials": {
+        "redis": {
+          "id": "WtfZXQNU7hH76E2O",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $input.first().json.output ?? $input.first().json.text ?? '';\nlet c;\ntry { const m = raw.match(/{[\\s\\S]*}/); c = JSON.parse(m ? m[0] : raw); }\ncatch(e) { c = { panicScore:2, riskLevel:'MEDIO', isSalvador:false, bairroDetectado:null, cidadeDetectada:'desconhecida', tipoRisco:'DESCONHECIDO', resumoContexto:'Fallback', ROUTE:'INFO' }; }\n\n// FIX: cidade desconhecida → assume Salvador (contexto do piloto)\nif (!c.cidadeDetectada || c.cidadeDetectada === 'DESCONHECIDO'  || c.cidadeDetectada === 'desconhecida') {\n  c.isSalvador = true;\n  c.cidadeDetectada = 'Salvador';\n  c.ROUTE = c.panicScore <= 2 ? 'INFO' : 'SALVADOR';\n}\n\nconst prev = $('Classificador').item.json;\nreturn [{ json: { ...c, route: c.ROUTE, sessionId: prev.sessionId, whatsappId: prev.whatsappId ||  prev.sessionId, message: prev.message, nome: prev.nome, bairro: c.bairroDetectado  || '', showEmergencyButton: c.panicScore >= 5 }}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        208
+      ],
+      "id": "a22899fc-b0c5-4adc-87bb-e4b839ee64db",
+      "name": "Extrair JSON"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "INFO",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r-info"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "INFO"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.route }}",
+                    "rightValue": "SALVADOR",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "r-ssa"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "SALVADOR"
+            }
+          ]
+        },
+        "options": {
+          "allMatchingOutputs": false
+        }
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.3,
+      "position": [
+        944,
+        208
+      ],
+      "id": "fb25b814-fd56-4d1b-836f-5d33a28334a2",
+      "name": "Roteador"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=NOME: {{ $json.nome }}\nPANIC: {{ $json.panicScore }}\nCIDADE: {{ $json.cidadeDetectada }}\nIS_SALVADOR: {{ $json.isSalvador }}\nMENSAGEM: {{ $json.message }}",
+        "options": {
+          "systemMessage": "Você é a ÁncorA, assistente climática (piloto em Salvador).\n\nSE isSalvador=false: \"Olá! O ÁncorA está em piloto em *Salvador*. Para emergências em [Cidade]:\n🆘 Defesa Civil: *199*\n🚒 Bombeiros: *193*\n🚑 SAMU: *192*\nEstamos expandindo! ⚓\"\n\nSE panicScore 1-2 e Salvador: resposta preventiva, acolhedora, curta. Dica útil.\n\nWhatsApp. Frases curtas. *negrito* nativo. Sem JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "2f82a19a-0f32-439f-8ba2-f7fe1c51d43b",
+      "name": "Agente Info"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.5
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1184,
+        208
+      ],
+      "id": "82b7d7e0-4960-46ad-ab80-3ac7458ee7d6",
+      "name": "LLM Info",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=info_{{ $json.sessionId }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 8
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        1312,
+        208
+      ],
+      "id": "c6a985b0-64cf-4646-8342-0b70d4307cc7",
+      "name": "Redis Info",
+      "credentials": {
+        "redis": {
+          "id": "WtfZXQNU7hH76E2O",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:4000/risk/analyze",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1184,
+        400
+      ],
+      "id": "995f7d06-e54c-4a0b-a710-e22e312688b2",
+      "name": "POST /risk/analyze",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:4000/climate/risk",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1184,
+        608
+      ],
+      "id": "d59c1de0-8b5e-4736-8bf4-14923c8a9c92",
+      "name": "POST /climate/risk",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "mode": "combineAll"
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        1424,
+        512
+      ],
+      "id": "777163d8-f7e2-46e2-91b8-aa1fc729a65a",
+      "name": "Merge Abrigo + Clima"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=DADOS APIs:\n{{ JSON.stringify($json) }}\n\nNOME: {{ $('Extrair JSON').item.json.nome }}\nMENSAGEM: {{ $('Extrair JSON').item.json.message }}\nPANIC: {{ $('Extrair JSON').item.json.panicScore }}\nRISCO: {{ $('Extrair JSON').item.json.tipoRisco }}\nBOTÃO EMERGÊNCIA: {{ $('Extrair JSON').item.json.showEmergencyButton }}",
+        "options": {
+          "systemMessage": "# ÁncorA — Executor Salvador v5\n\nVocê recebe dados de 2 APIs:\n- /risk/analyze: { riskLevel, shelter:{nome,endereco,distancia}, nearbyShelters, emergencyContacts }\n- /climate/risk: { riskLevel, summary, historicalPattern, context }\n\n## FORMATO POR PANIC SCORE\n\n**3 (Alerta):** Tom firme. Contexto histórico. Orienta ação. Menciona abrigo.\n\n**4 (Emergência):** URGENTE. Primeira linha = ação. Abrigo obrigatório.\n\"*Saia agora.* Não espere a água entrar.\"\n📍 *[nome abrigo]* — [endereco] ([distancia])\n\n**5 (Crítico):** Primeira linha = emergência.\n\"🆘 *Defesa Civil: 199 | Bombeiros: 193 | SAMU: 192*\"\nInstrução de sobrevivência + abrigo.\n\n## REGRAS\n- Use NOME na primeira linha: \"*[Nome]*, ...\"\n- WhatsApp: *negrito*, _itálico_. Frases curtas.\n- Emojis: ⚠️ 📍 🆘 🚶 ☔\n- Se shelter=null: \"Suba para o ponto mais alto da sua rua.\"\n- showEmergencyButton=true → SEMPRE termine com: 🆘 *199* | *193* | *192*\n- NUNCA mencione API, JSON, backend, ChromaDB\n\nTexto direto. SEM JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        1664,
+        512
+      ],
+      "id": "980208e5-e0bf-4898-bc8f-57c6933a6e7b",
+      "name": "Executor Salvador"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        1664,
+        720
+      ],
+      "id": "f199e32a-b4fd-4cf6-9acf-c69d339dd79f",
+      "name": "LLM Salvador",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=ssa_{{ $('Extrair JSON').item.json.sessionId }}",
+        "sessionTTL": 3600,
+        "contextWindowLength": 10
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryRedisChat",
+      "typeVersion": 1.5,
+      "position": [
+        1792,
+        720
+      ],
+      "id": "23bd42c7-4486-479e-8b7c-74b89509aadb",
+      "name": "Redis SSA",
+      "credentials": {
+        "redis": {
+          "id": "WtfZXQNU7hH76E2O",
+          "name": "Redis account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Parse WAHA').item.json.session }}",
+        "chatId": "={{ $('Parse WAHA').item.json.chatId }}",
+        "messageId": "={{ $('Parse WAHA').item.json.payload_id }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [
+        2032,
+        384
+      ],
+      "id": "445145dc-f1d4-480e-8b3b-e7aab3cb5f71",
+      "name": "Send Seen",
+      "credentials": {
+        "wahaApi": {
+          "id": "TQA13F9hKJxUne41",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Parse WAHA').item.json.session }}",
+        "chatId": "={{ $('Parse WAHA').item.json.chatId }}",
+        "text": "={{ $input.first().json.output ?? $input.first().json.text ?? 'Desculpe, tive um problema. Ligue 199 (Defesa Civil) se for emergência.' }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [
+        2224,
+        128
+      ],
+      "id": "483d4bcc-a28d-4ae8-85fe-2d2c7e32e650",
+      "name": "WAHA Responde",
+      "credentials": {
+        "wahaApi": {
+          "id": "TQA13F9hKJxUne41",
+          "name": "WAHA account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.headers['x-dc-token'] ?? $json.body?.token }}",
+              "rightValue": "={{ $env.DEFESA_CIVIL_TOKEN ?? 'ancora-dc-2026' }}",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              },
+              "id": "tk"
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -480,
+        1200
+      ],
+      "id": "f4f8ce82-4443-400e-8cd8-f0c63d5840ac",
+      "name": "Token Válido?"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://api:4000/contacts/search",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {}
+          ]
+        },
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -208,
+        1200
+      ],
+      "id": "96c1bc71-f5c6-4b83-ab18-e1bfa49326f0",
+      "name": "POST /contacts/search"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status:'accepted', total: $json.total ?? 0, area: $('Webhook Defesa Civil').item.json.body.area, timestamp: new Date().toISOString() }) }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        -208,
+        1408
+      ],
+      "id": "44752dcd-f90f-4ef6-ba07-33f3ed2fb790",
+      "name": "202 Aceito"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Transforma contacts em itens individuais pra split\nconst contacts = $json.contacts || [];\nreturn contacts.map(c => ({ json: c }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        80,
+        1200
+      ],
+      "id": "792e3fb1-1b31-49ac-af03-a11b70af0f6b",
+      "name": "Explode Contatos"
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        320,
+        1200
+      ],
+      "id": "c8e46523-92ce-435d-b669-4638b752c1e9",
+      "name": "Lotes de 5"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=ALERTA:\n{{ JSON.stringify($('Webhook Defesa Civil').item.json.body) }}\n\nDESTINATÁRIO: {{ $json.nome || $json.primeiroNome || 'Morador' }}",
+        "options": {
+          "systemMessage": "# ÁncorA — Alerta Ativo\n\nGere mensagem WhatsApp curta (máx 3 parágrafos) para o destinatário.\n\n## FORMATO\n⚠️ *[Nome]*, alerta da Defesa Civil:\n\n[Risco + área em 1-2 frases]\n\n[Ação imediata]\n🆘 Defesa Civil: *199* | Bombeiros: *193*\n\n*negrito* nativo WA. Texto direto. SEM JSON."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        560,
+        1200
+      ],
+      "id": "f4bd1845-4341-4466-b90a-d0a57fc8f9d6",
+      "name": "Gera Alerta"
+    },
+    {
+      "parameters": {
+        "options": {
+          "temperature": 0.4
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        560,
+        1408
+      ],
+      "id": "ac3071dc-f2c6-4d94-8c43-4ba53f54fbca",
+      "name": "LLM Disparo",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "OhFaK8IxYkANMsUy",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $env.WAHA_SESSION ?? 'default' }}",
+        "chatId": "={{ $('Lotes de 5').item.json.formatoE164 || $('Lotes de 5').item.json.telefone }}@c.us",
+        "text": "={{ $json.output ?? $json.text ?? '' }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [
+        800,
+        1200
+      ],
+      "id": "7082cfbf-7be9-4d40-ba24-4a757b7a89df",
+      "name": "WAHA Disparo",
+      "credentials": {
+        "wahaApi": {
+          "id": "TQA13F9hKJxUne41",
+          "name": "WAHA account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook WAHA": {
+      "main": [
+        [
+          {
+            "node": "Parse WAHA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse WAHA": {
+      "main": [
+        [
+          {
+            "node": "Tipo Mídia?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Tipo Mídia?": {
+      "main": [
+        [
+          {
+            "node": "Gemini Vision",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Gemini Transcrição",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Classificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Vision": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Vision",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Vision": {
+      "main": [
+        [
+          {
+            "node": "Texto + Foto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto + Foto": {
+      "main": [
+        [
+          {
+            "node": "Classificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Áudio": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gemini Transcrição",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini Transcrição": {
+      "main": [
+        [
+          {
+            "node": "Texto + Áudio",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Texto + Áudio": {
+      "main": [
+        [
+          {
+            "node": "Classificador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Classificador": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classificador",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Class": {
+      "ai_memory": [
+        [
+          {
+            "node": "Classificador",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classificador": {
+      "main": [
+        [
+          {
+            "node": "Extrair JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extrair JSON": {
+      "main": [
+        [
+          {
+            "node": "Roteador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Roteador": {
+      "main": [
+        [
+          {
+            "node": "Agente Info",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "POST /risk/analyze",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "POST /climate/risk",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Info": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Agente Info",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis Info": {
+      "ai_memory": [
+        [
+          {
+            "node": "Agente Info",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agente Info": {
+      "main": [
+        [
+          {
+            "node": "WAHA Responde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /risk/analyze": {
+      "main": [
+        [
+          {
+            "node": "Merge Abrigo + Clima",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /climate/risk": {
+      "main": [
+        [
+          {
+            "node": "Merge Abrigo + Clima",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Merge Abrigo + Clima": {
+      "main": [
+        [
+          {
+            "node": "Executor Salvador",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Salvador": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Executor Salvador",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Redis SSA": {
+      "ai_memory": [
+        [
+          {
+            "node": "Executor Salvador",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Executor Salvador": {
+      "main": [
+        [
+          {
+            "node": "Send Seen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Seen": {
+      "main": [
+        [
+          {
+            "node": "WAHA Responde",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook Defesa Civil": {
+      "main": [
+        [
+          {
+            "node": "Token Válido?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Token Válido?": {
+      "main": [
+        [
+          {
+            "node": "POST /contacts/search",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST /contacts/search": {
+      "main": [
+        [
+          {
+            "node": "202 Aceito",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Explode Contatos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Explode Contatos": {
+      "main": [
+        [
+          {
+            "node": "Lotes de 5",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lotes de 5": {
+      "main": [
+        [
+          {
+            "node": "Gera Alerta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM Disparo": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Gera Alerta",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gera Alerta": {
+      "main": [
+        [
+          {
+            "node": "WAHA Disparo",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "72dc2661-ae95-45c3-9136-357c58ccea93",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "3c90c1979b5b8356cc737b949e66fc6733f0c0148bbbb6276e0fcafc2785fe1b"
+  },
+  "id": "g16fLYM40CxSI2Ic",
+  "tags": [
+    {
+      "name": "ancora-v5",
+      "id": "reg621S013nfFSJb",
+      "updatedAt": "2026-05-22T13:15:44.454Z",
+      "createdAt": "2026-05-22T13:15:44.454Z"
+    }
+  ]
+}
