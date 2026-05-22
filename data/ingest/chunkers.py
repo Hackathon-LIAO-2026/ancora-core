@@ -145,3 +145,41 @@ def chunk_abrigos(df: pd.DataFrame) -> list[dict]:
             "metadata": meta,
         })
     return docs
+
+
+
+@register("contatos")
+def chunk_contatos(df: pd.DataFrame) -> list[dict]:
+    """Cada contato vira um documento textual com telefone e região."""
+    docs = []
+    for i, row in df.iterrows():
+        nome = str(row.get("nome_completo", ""))
+        primeiro_nome = str(row.get("primeiro_nome", ""))
+        telefone = str(row.get("numero_formatado", ""))
+        formato_e164 = str(row.get("formato_e164", ""))
+        ddd = str(row.get("ddd", ""))
+        estado = str(row.get("estado_ddd", ""))
+        regiao = str(row.get("regiao_ddd", ""))
+        tipo = str(row.get("tipo_numero", ""))
+
+        texto = (
+            f"Contato: {nome}. "
+            f"Telefone: {telefone}. "
+            f"DDD: {ddd} — {estado}, {regiao}. "
+            f"Tipo: {tipo}."
+        )
+
+        docs.append({
+            "id": f"contato-{i}",
+            "document": texto,
+            "metadata": {
+                "nome": nome,
+                "primeiro_nome": primeiro_nome,
+                "telefone": telefone,
+                "formato_e164": formato_e164,
+                "ddd": ddd,
+                "estado": estado,
+                "tipo_numero": tipo,
+            },
+        })
+    return docs

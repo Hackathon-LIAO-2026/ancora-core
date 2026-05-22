@@ -46,6 +46,13 @@ DATASETS = {
         "loader": "csv_with_header",
         "chunker": "abrigos",
     },
+    "contatos": {
+        "file": "contatos.csv",
+        "collection": "contatos",
+        "description": "Contatos para broadcast de alertas via WhatsApp",
+        "loader": "csv_with_header",
+        "chunker": "contatos",
+    },
 }
 
 # Colunas do CSV INMET (sem header)

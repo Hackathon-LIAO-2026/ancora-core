@@ -46,6 +46,23 @@ functions:
           method: GET
           path: /risk/health
 
+  contactSearch:
+    handler: lambdas/contact-search/dist/handler.handler
+    timeout: 10
+    events:
+      - http:
+          method: POST
+          path: /contacts/search
+      - http:
+          method: POST
+          path: /contacts/broadcast
+      - http:
+          method: GET
+          path: /contacts/all
+      - http:
+          method: GET
+          path: /contacts/health
+
 plugins:
   - serverless-offline
 
