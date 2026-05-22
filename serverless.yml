@@ -7,6 +7,11 @@ provider:
   runtime: nodejs20.x
   region: sa-east-1
   stage: ${opt:stage, 'dev'}
+  environment:
+    CHROMA_HOST: ${env:CHROMA_HOST, 'localhost'}
+    CHROMA_PORT: ${env:CHROMA_PORT, '8000'}
+    DATABASE_URL: ${env:DATABASE_URL, ''}
+    REDIS_URL: ${env:REDIS_URL, ''}
 
 functions:
   hello:
@@ -18,6 +23,7 @@ functions:
 
   climateSearch:
     handler: lambdas/climate-search/dist/handler.handler
+    timeout: 30
     events:
       - http:
           method: POST
@@ -25,6 +31,20 @@ functions:
       - http:
           method: GET
           path: /climate/health
+
+  riskAnalysis:
+    handler: lambdas/risk-analysis/dist/handler.handler
+    timeout: 30
+    events:
+      - http:
+          method: POST
+          path: /risk/analyze
+      - http:
+          method: GET
+          path: /risk/shelters
+      - http:
+          method: GET
+          path: /risk/health
 
 plugins:
   - serverless-offline

@@ -98,3 +98,50 @@ def chunk_orgaos(df: pd.DataFrame) -> list[dict]:
             },
         })
     return docs
+
+
+
+@register("abrigos")
+def chunk_abrigos(df: pd.DataFrame) -> list[dict]:
+    """Cada abrigo vira um documento textual com localização e serviços."""
+    docs = []
+    for i, row in df.iterrows():
+        nome = str(row.get("nome", ""))
+        bairro = str(row.get("bairro", ""))
+        endereco = str(row.get("endereco", "")) if pd.notna(row.get("endereco")) else bairro
+        servicos = str(row.get("servicos_oferecidos", "")) if pd.notna(row.get("servicos_oferecidos")) else ""
+        area_risco = str(row.get("area_risco_associada", "")) if pd.notna(row.get("area_risco_associada")) else ""
+        modo_ativacao = str(row.get("modo_ativacao", "")) if pd.notna(row.get("modo_ativacao")) else ""
+        telefone = str(row.get("telefone", "")) if pd.notna(row.get("telefone")) else ""
+
+        texto = (
+            f"Abrigo: {nome}. "
+            f"Bairro: {bairro}, Salvador. "
+            f"Endereço: {endereco}. "
+            f"Área de risco: {area_risco}. "
+            f"Modo de ativação: {modo_ativacao}. "
+            f"Serviços: {servicos}."
+        )
+
+        lat = float(row["latitude"]) if pd.notna(row.get("latitude")) else -12.9714
+        lng = float(row["longitude"]) if pd.notna(row.get("longitude")) else -38.5014
+
+        meta = {
+            "nome": nome,
+            "bairro": bairro,
+            "endereco": endereco,
+            "latitude": lat,
+            "longitude": lng,
+            "area_risco": area_risco,
+            "modo_ativacao": modo_ativacao,
+            "servicos": servicos,
+        }
+        if telefone:
+            meta["telefone"] = telefone
+
+        docs.append({
+            "id": f"abrigo-{i}",
+            "document": texto,
+            "metadata": meta,
+        })
+    return docs

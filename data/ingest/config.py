@@ -39,6 +39,13 @@ DATASETS = {
         "loader": "csv_with_header",
         "chunker": "orgaos",
     },
+    "abrigos": {
+        "file": "abrigos_salvador_bahia_v2.csv",
+        "collection": "abrigos_salvador",
+        "description": "Abrigos de emergência de Salvador com localização e serviços",
+        "loader": "csv_with_header",
+        "chunker": "abrigos",
+    },
 }
 
 # Colunas do CSV INMET (sem header)

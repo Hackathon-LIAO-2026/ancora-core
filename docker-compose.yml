@@ -57,11 +57,13 @@ services:
     working_dir: /app
     command: >
       sh -c "cd lambdas/climate-search && npm install && npm run build &&
+             cd /app/lambdas/risk-analysis && npm install && npm run build &&
              cd /app && npm install && npx serverless offline start --host 0.0.0.0"
     volumes:
       - .:/app
       - node_modules_api:/app/node_modules
       - node_modules_climate:/app/lambdas/climate-search/node_modules
+      - node_modules_risk:/app/lambdas/risk-analysis/node_modules
     ports:
       - "4000:4000"
     environment:
@@ -72,6 +74,8 @@ services:
     depends_on:
       chromadb:
         condition: service_healthy
+      postgres:
+        condition: service_started
 
   # ╔═══════════════════════════════════════════════════════════════════╗
   # ║ WAHA — Gateway WhatsApp                                          ║
@@ -173,6 +177,7 @@ volumes:
   ingest_registry:
   node_modules_api:
   node_modules_climate:
+  node_modules_risk:
   waha_sessions:
   waha_media:
   n8n_data:
