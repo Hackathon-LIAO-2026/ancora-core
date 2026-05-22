@@ -31,7 +31,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Parse entrada WAHA — detecta tipo de mídia\nconst body = $input.first().json.body ?? $input.first().json;\nconst msg = body.message ?? body.payload ?? body;\n\nconst mediaUrl = msg.mediaUrl || msg.media?.url || body.mediaUrl || null;\nconst mimetype = msg.mimetype || msg.media?.mimetype || '';\nconst hasImage = !!(mediaUrl && mimetype.startsWith('image/'));\nconst hasAudio = !!(mediaUrl && (mimetype.startsWith('audio/') || mimetype.includes('ogg')));\nconst text = msg.body || msg.text || msg.message || '';\n\nreturn [{ json: {\n  sessionId: (msg.from || body.chatId || 'unknown').replace('@c.us',''),\n  whatsappId: msg.from || body.chatId || '',\n  message: text,\n  nome: msg.pushName || msg.notifyName || 'usuário',\n  hasImage,\n  hasAudio,\n  hasText: !!text && !hasImage && !hasAudio,\n  mediaUrl,\n  mimetype\n}}];"
+        "jsCode": "// Parse entrada WAHA — detecta tipo de mídia\nconst body = $input.first().json.body ?? $input.first().json;\nconst msg = body.message ?? body.payload ?? body;\n\nconst mediaUrl = msg.mediaUrl || msg.media?.url || body.mediaUrl || null;\nconst mimetype = msg.mimetype || msg.media?.mimetype || '';\nconst hasImage = !!(mediaUrl && mimetype.startsWith('image/'));\nconst hasAudio = !!(mediaUrl && (mimetype.startsWith('audio/') || mimetype.includes('ogg')));\nconst text = msg.body || msg.text || msg.message || '';\n\nreturn [{ json: {\n  session: body.session || 'default',\n  chatId: msg.from || body.chatId || '',\n  payload_id: msg.id || body.payload?.id || '',\n  pushName: msg.pushName || msg._data?.Info?.PushName || msg.notifyName || 'usuário',\n  sessionId: (msg.from || body.chatId || 'unknown').replace('@c.us',''),\n  whatsappId: msg.from || body.chatId || '',\n  message: text,\n  nome: msg.pushName || msg._data?.Info?.PushName || msg.notifyName || 'usuário',\n  hasImage,\n  hasAudio,\n  hasText: !!text && !hasImage && !hasAudio,\n  mediaUrl,\n  mimetype\n}}];"
       },
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
@@ -293,17 +293,35 @@
     },
     {
       "parameters": {
-        "operation": "sendText",
-        "session": "={{ $env.WAHA_SESSION ?? 'default' }}",
-        "chatId": "={{ $('Extrair JSON').item.json.whatsappId }}",
-        "text": "={{ $json.output ?? $json.text ?? 'Desculpe, tive um problema. Ligue 199 (Defesa Civil) se for emergência.' }}",
-        "options": {}
+        "resource": "Chatting",
+        "operation": "Send Seen",
+        "session": "={{ $('Parse WAHA').item.json.session }}",
+        "chatId": "={{ $('Parse WAHA').item.json.chatId }}",
+        "messageId": "={{ $('Parse WAHA').item.json.payload_id }}",
+        "requestOptions": {}
       },
       "type": "n8n-nodes-waha.WAHA",
-      "typeVersion": 1,
-      "position": [1860, 100],
+      "typeVersion": 202411,
+      "position": [1860, 0],
+      "id": "waha-seen",
+      "name": "Send Seen",
+      "credentials": { "wahaApi": { "id": "fI8vwgpors6dVFxv", "name": "WAHA account" } }
+    },
+    {
+      "parameters": {
+        "resource": "Chatting",
+        "operation": "Send Text",
+        "session": "={{ $('Parse WAHA').item.json.session }}",
+        "chatId": "={{ $('Parse WAHA').item.json.chatId }}",
+        "text": "={{ $('Send Seen').item.json ? '' : '' }}{{ $input.first().json.output ?? $input.first().json.text ?? 'Desculpe, tive um problema. Ligue 199 (Defesa Civil) se for emergência.' }}",
+        "requestOptions": {}
+      },
+      "type": "n8n-nodes-waha.WAHA",
+      "typeVersion": 202411,
+      "position": [2100, 0],
       "id": "waha-send",
-      "name": "WAHA Responde"
+      "name": "WAHA Responde",
+      "credentials": { "wahaApi": { "id": "fI8vwgpors6dVFxv", "name": "WAHA account" } }
     },
     {
       "parameters": {
@@ -402,17 +420,19 @@
     },
     {
       "parameters": {
-        "operation": "sendText",
+        "resource": "Chatting",
+        "operation": "Send Text",
         "session": "={{ $env.WAHA_SESSION ?? 'default' }}",
         "chatId": "={{ $('Lotes de 5').item.json.formatoE164 || $('Lotes de 5').item.json.telefone }}@c.us",
         "text": "={{ $json.output ?? $json.text ?? '' }}",
-        "options": {}
+        "requestOptions": {}
       },
       "type": "n8n-nodes-waha.WAHA",
-      "typeVersion": 1,
+      "typeVersion": 202411,
       "position": [720, 1000],
       "id": "waha-disparo",
-      "name": "WAHA Disparo"
+      "name": "WAHA Disparo",
+      "credentials": { "wahaApi": { "id": "fI8vwgpors6dVFxv", "name": "WAHA account" } }
     }
   ],
   "connections": {
@@ -443,13 +463,14 @@
     },
     "LLM Info": { "ai_languageModel": [[{ "node": "Agente Info", "type": "ai_languageModel", "index": 0 }]] },
     "Redis Info": { "ai_memory": [[{ "node": "Agente Info", "type": "ai_memory", "index": 0 }]] },
-    "Agente Info": { "main": [[{ "node": "WAHA Responde", "type": "main", "index": 0 }]] },
+    "Agente Info": { "main": [[{ "node": "Send Seen", "type": "main", "index": 0 }]] },
     "POST /risk/analyze": { "main": [[{ "node": "Merge Abrigo + Clima", "type": "main", "index": 0 }]] },
     "POST /climate/risk": { "main": [[{ "node": "Merge Abrigo + Clima", "type": "main", "index": 1 }]] },
     "Merge Abrigo + Clima": { "main": [[{ "node": "Executor Salvador", "type": "main", "index": 0 }]] },
     "LLM Salvador": { "ai_languageModel": [[{ "node": "Executor Salvador", "type": "ai_languageModel", "index": 0 }]] },
     "Redis SSA": { "ai_memory": [[{ "node": "Executor Salvador", "type": "ai_memory", "index": 0 }]] },
-    "Executor Salvador": { "main": [[{ "node": "WAHA Responde", "type": "main", "index": 0 }]] },
+    "Executor Salvador": { "main": [[{ "node": "Send Seen", "type": "main", "index": 0 }]] },
+    "Send Seen": { "main": [[{ "node": "WAHA Responde", "type": "main", "index": 0 }]] },
     "Webhook Defesa Civil": { "main": [[{ "node": "Token Válido?", "type": "main", "index": 0 }]] },
     "Token Válido?": { "main": [[{ "node": "POST /contacts/search", "type": "main", "index": 0 }], [{ "node": "401", "type": "main", "index": 0 }]] },
     "POST /contacts/search": { "main": [[{ "node": "202 Aceito", "type": "main", "index": 0 }, { "node": "Explode Contatos", "type": "main", "index": 0 }]] },
