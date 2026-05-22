@@ -1,8 +1,7 @@
-import { Controller, Post, Get, Body, Query, Inject } from '@nestjs/common';
+import { Controller, Post, Get, Body, Inject } from '@nestjs/common';
 import { SearchContactsUseCase } from '../application/search-contacts.use-case';
-import { ListAllContactsUseCase } from '../application/list-all-contacts.use-case';
-import { ContactSearchRequestDto, BroadcastRequestDto } from '../application/dto/contact-request.dto';
-import { ContactSearchResponseDto, BroadcastResponseDto } from '../application/dto/contact-response.dto';
+import { ContactSearchRequestDto } from '../application/dto/contact-request.dto';
+import { ContactSearchResponseDto } from '../application/dto/contact-response.dto';
 import {
   IContactRepository,
   CONTACT_REPOSITORY,
@@ -12,7 +11,6 @@ import {
 export class ContactSearchController {
   constructor(
     private readonly searchContacts: SearchContactsUseCase,
-    private readonly listAllContacts: ListAllContactsUseCase,
     @Inject(CONTACT_REPOSITORY)
     private readonly repository: IContactRepository,
   ) {}
@@ -20,8 +18,8 @@ export class ContactSearchController {
   /**
    * POST /contacts/search
    *
-   * Busca contatos por query semântica ou região.
-   * Retorna lista com telefones formatados.
+   * O n8n chama esse endpoint pra buscar contatos.
+   * Retorna os números E.164 prontos pro WAHA enviar.
    */
   @Post('search')
   async search(@Body() dto: ContactSearchRequestDto): Promise<ContactSearchResponseDto> {
@@ -29,28 +27,13 @@ export class ContactSearchController {
   }
 
   /**
-   * POST /contacts/broadcast
-   *
-   * Endpoint principal pro n8n — retorna todos os números E.164
-   * prontos pra disparar mensagem via WAHA.
-   *
-   * O n8n chama esse endpoint quando a Defesa Civil dispara um alerta.
-   */
-  @Post('broadcast')
-  async broadcast(@Body() dto: BroadcastRequestDto): Promise<BroadcastResponseDto> {
-    return this.listAllContacts.execute(dto);
-  }
-
-  /**
    * GET /contacts/all
    *
-   * Lista todos os contatos cadastrados (sem filtro).
+   * Retorna todos os contatos sem filtro.
    */
   @Get('all')
-  async getAll(@Query('limit') limit?: number) {
-    const dto = new ContactSearchRequestDto();
-    dto.limit = limit;
-    return this.searchContacts.execute(dto);
+  async getAll(): Promise<ContactSearchResponseDto> {
+    return this.searchContacts.execute({});
   }
 
   /**

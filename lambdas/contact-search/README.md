@@ -1,9 +1,9 @@
 # Lambda 3 — Contact Search
 
-> Busca de contatos para broadcast de alertas via n8n/WhatsApp.
+> Busca de contatos no ChromaDB para o n8n disparar mensagens via WAHA.
 
-Quando a Defesa Civil dispara um alerta, o n8n chama esta Lambda pra pegar
-os números de telefone e enviar mensagens personalizadas via WAHA.
+A IA do n8n decide quando mandar mensagem, chama essa Lambda pra pegar
+os números, e ela mesma envia via WAHA.
 
 ---
 
@@ -11,71 +11,54 @@ os números de telefone e enviar mensagens personalizadas via WAHA.
 
 Base URL: `http://localhost:4000`
 
----
+### POST /contacts/search
 
-### POST /contacts/broadcast
-
-**Endpoint principal pro n8n** — retorna todos os números E.164 prontos pra envio.
+Busca contatos no banco vetorial. Aceita filtro por nome, região ou DDD.
 
 ```bash
-curl -s -X POST http://localhost:4000/contacts/broadcast \
+# Todos os contatos
+curl -s -X POST http://localhost:4000/contacts/search \
   -H "Content-Type: application/json" \
-  -d '{
-    "mensagem": "⚠️ ALERTA: Chuva forte prevista para Salvador nas próximas 3h. Procure abrigo seguro."
-  }' | jq
+  -d '{}' | jq
+
+# Por nome
+curl -s -X POST http://localhost:4000/contacts/search \
+  -H "Content-Type: application/json" \
+  -d '{ "query": "Eder" }' | jq
+
+# Por região
+curl -s -X POST http://localhost:4000/contacts/search \
+  -H "Content-Type: application/json" \
+  -d '{ "regiao": "Salvador" }' | jq
+
+# Por DDD
+curl -s -X POST http://localhost:4000/contacts/search \
+  -H "Content-Type: application/json" \
+  -d '{ "ddd": "71" }' | jq
 ```
 
 **Response:**
 ```json
 {
   "numbers": ["+557182041743", "+557781309491", "+5571993468650"],
-  "recipients": [
-    { "nome": "Atila Avila", "primeiroNome": "Atila", "numero": "+557182041743" },
-    { "nome": "Eder Natan", "primeiroNome": "Eder", "numero": "+557781309491" },
-    { "nome": "Moises de Jesus", "primeiroNome": "Moises", "numero": "+5571993468650" }
+  "contacts": [
+    {
+      "nome": "Atila Avila",
+      "primeiroNome": "Atila",
+      "telefone": "+55 71 8204-1743",
+      "formatoE164": "+557182041743",
+      "ddd": "71",
+      "estado": "Bahia"
+    }
   ],
   "total": 3,
-  "mensagem": "⚠️ ALERTA: Chuva forte prevista para Salvador nas próximas 3h. Procure abrigo seguro."
+  "meta": { "query": null, "elapsedMs": 5 }
 }
-```
-
-### POST /contacts/broadcast (com filtro por região)
-
-```bash
-curl -s -X POST http://localhost:4000/contacts/broadcast \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mensagem": "Alerta de alagamento em Salvador",
-    "regiao": "Salvador"
-  }' | jq
-```
-
-### POST /contacts/broadcast (excluindo números)
-
-```bash
-curl -s -X POST http://localhost:4000/contacts/broadcast \
-  -H "Content-Type: application/json" \
-  -d '{
-    "mensagem": "Alerta geral",
-    "excluir": ["+557182041743"]
-  }' | jq
-```
-
----
-
-### POST /contacts/search
-
-Busca semântica por contatos.
-
-```bash
-curl -s -X POST http://localhost:4000/contacts/search \
-  -H "Content-Type: application/json" \
-  -d '{ "query": "Eder" }' | jq
 ```
 
 ### GET /contacts/all
 
-Lista todos os contatos.
+Retorna todos os contatos sem filtro.
 
 ```bash
 curl -s http://localhost:4000/contacts/all | jq
@@ -89,21 +72,20 @@ curl -s http://localhost:4000/contacts/health | jq
 
 ---
 
-## Fluxo no n8n
+## Fluxo
 
 ```
-Defesa Civil dispara alerta
+IA do n8n decide mandar alerta
        ↓
-n8n chama POST /contacts/broadcast com a mensagem
+n8n chama POST /contacts/search (com ou sem filtro)
        ↓
-Lambda retorna { numbers: [...], recipients: [...], mensagem: "..." }
+Lambda retorna { numbers: [...], contacts: [...] }
        ↓
-n8n itera sobre recipients e envia via WAHA (personalizado com primeiroNome)
+n8n itera e envia via WAHA
 ```
 
 ---
 
 ## Dados
 
-Contatos ingeridos automaticamente pelo serviço `ingest` a partir de:
-`data/csv/contatos.csv` → collection `contatos` no ChromaDB.
+`data/csv/contatos.csv` → collection `contatos` no ChromaDB (via ingest).

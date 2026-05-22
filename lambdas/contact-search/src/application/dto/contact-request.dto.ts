@@ -1,8 +1,8 @@
-import { IsString, IsOptional, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsOptional, IsNumber } from 'class-validator';
 
 /**
  * Payload que o n8n envia para buscar contatos.
- * Pode buscar por nome, região ou retornar todos.
+ * Busca semântica no ChromaDB — pode filtrar por nome, região ou DDD.
  */
 export class ContactSearchRequestDto {
   @IsOptional()
@@ -20,21 +20,4 @@ export class ContactSearchRequestDto {
   @IsOptional()
   @IsNumber()
   limit?: number;
-}
-
-/**
- * Payload para broadcast — n8n envia a mensagem e recebe os números.
- */
-export class BroadcastRequestDto {
-  @IsString()
-  mensagem: string;
-
-  @IsOptional()
-  @IsString()
-  regiao?: string;
-
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  excluir?: string[];
 }

@@ -7,7 +7,11 @@ import { ContactSearchRequestDto } from './dto/contact-request.dto';
 import { ContactSearchResponseDto, ContactDto } from './dto/contact-response.dto';
 
 /**
- * Use Case — Buscar contatos por query semântica ou região.
+ * Use Case — Buscar contatos no ChromaDB.
+ *
+ * O n8n chama essa Lambda quando precisa dos números de telefone
+ * pra disparar mensagens via WAHA. A busca é semântica (por nome,
+ * região, DDD) ou retorna todos se nenhum filtro for passado.
  */
 @Injectable()
 export class SearchContactsUseCase {
@@ -20,7 +24,7 @@ export class SearchContactsUseCase {
 
   async execute(dto: ContactSearchRequestDto): Promise<ContactSearchResponseDto> {
     const start = Date.now();
-    const limit = dto.limit || 20;
+    const limit = dto.limit || 50;
 
     let results;
 
@@ -32,13 +36,16 @@ export class SearchContactsUseCase {
       this.logger.log(`Buscando contatos por região: ${region}`);
       results = await this.contactRepository.searchByRegion(region, limit);
     } else {
-      this.logger.log('Listando todos os contatos');
+      this.logger.log('Retornando todos os contatos');
       results = await this.contactRepository.listAll();
     }
 
     const elapsed = Date.now() - start;
 
     const response = new ContactSearchResponseDto();
+
+    response.numbers = results.map((r) => r.metadata.formato_e164);
+
     response.contacts = results.map((r) => {
       const contact = new ContactDto();
       contact.nome = r.metadata.nome;
@@ -49,14 +56,14 @@ export class SearchContactsUseCase {
       contact.estado = r.metadata.estado;
       return contact;
     });
+
     response.total = response.contacts.length;
     response.meta = {
-      query: dto.query || null,
-      regiao: dto.regiao || dto.ddd || null,
+      query: dto.query || dto.regiao || dto.ddd || null,
       elapsedMs: elapsed,
     };
 
-    this.logger.log(`${response.total} contatos encontrados em ${elapsed}ms`);
+    this.logger.log(`${response.total} contatos retornados em ${elapsed}ms`);
     return response;
   }
 }
