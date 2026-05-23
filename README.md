@@ -133,11 +133,13 @@ ancora-core/
 
 ## Time
 
+## Time
 | | Nome | Papel |
 |---|---|---|
-| Hacker / CTO | Éder Natan Azevedo Figueiredo | ML, Backend, Infraestrutura |
-| Dados | Moises de Jesus | EDA, Feature Engineering |
-| Design | Atila Avila Garcia | UI/UX, Pitch |
+| 🤖 Hacker / CTO | [Éder Natan](https://github.com/edernatanzz) | ML, Backend, Infraestrutura |
+| 📊 Dados | [Moises de Jesus](https://github.com/Moises-de-Jesus) | EDA, Feature Engineering |
+| 🎨 Design | [Átila Ávila](https://github.com/Avila-Atila) | UI/UX, Pitch |
+| Frontend | Marcio Ribeiro | frontend
 
 ---
 
