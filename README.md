@@ -136,7 +136,6 @@ ancora-core/
 | | Nome | Papel |
 |---|---|---|
 | Hacker / CTO | Éder Natan Azevedo Figueiredo | ML, Backend, Infraestrutura |
-| Dev | Marcio Ribeiro | Frontend, Integração API |
 | Dados | Moises de Jesus | EDA, Feature Engineering |
 | Design | Atila Avila Garcia | UI/UX, Pitch |
 
